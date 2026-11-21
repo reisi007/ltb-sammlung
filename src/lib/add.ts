@@ -85,6 +85,55 @@ export function parseVolumeInput(text: string): number[] {
   return numbers;
 }
 
+export interface SearchNumbers {
+  /** Gueltige Nummern, hoechstens {@link MAX_ADD_ITEMS}. */
+  numbers: number[];
+  /** Ziffernfolgen ausserhalb von 1..{@link MAX_VOLUME_NUMBER}. */
+  invalid: string[];
+  /** true, wenn mehr als {@link MAX_ADD_ITEMS} Nummern eingegeben wurden. */
+  tooMany: boolean;
+}
+
+/**
+ * Erkennt eine Suche nach mehreren Nummern ("12, 13 14"). Nur wenn alle
+ * Bestandteile Ziffern sind; sonst bleibt es eine normale Textsuche.
+ * Eine einzelne Nummer ist Sache der exakten Trefferleiste.
+ */
+export function parseSearchNumbers(query: string): SearchNumbers | null {
+  const parts = query
+    .trim()
+    .split(/[,;\s]+/)
+    .map((part) => part.trim())
+    .filter((part) => part !== "");
+
+  if (parts.length < 2) {
+    return null;
+  }
+
+  const numbers: number[] = [];
+  const invalid: string[] = [];
+
+  for (const part of parts) {
+    const number = extractNumberFromScan(part);
+
+    if (number !== null) {
+      numbers.push(number);
+    } else if (/^\d+$/.test(part)) {
+      invalid.push(part);
+    } else {
+      return null;
+    }
+  }
+
+  const tooMany = numbers.length > MAX_ADD_ITEMS;
+
+  return {
+    numbers: tooMany ? numbers.slice(0, MAX_ADD_ITEMS) : numbers,
+    invalid,
+    tooMany,
+  };
+}
+
 export function validateAddNumbers(
   numbers: readonly number[],
   limit: number = MAX_ADD_ITEMS,

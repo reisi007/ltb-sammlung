@@ -13,7 +13,12 @@ import { NumberGrid } from "./components/NumberGrid";
 import { RowList } from "./components/RowList";
 import { SeriesCover } from "./components/SeriesCover";
 import { isLocale, loadCatalog as loadMessages, type Locale } from "./i18n";
-import { getDuplicateNumbers, type AddItem } from "./lib/add";
+import {
+  MAX_ADD_ITEMS,
+  getDuplicateNumbers,
+  parseSearchNumbers,
+  type AddItem,
+} from "./lib/add";
 import {
   formatCount,
   formatDateTime,
@@ -231,6 +236,11 @@ function CollectionView({
     numbers?: readonly number[];
   } | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const multiQuery = parseSearchNumbers(query);
+  const numberFilter =
+    multiQuery !== null && multiQuery.numbers.length > 0
+      ? new Set(multiQuery.numbers)
+      : null;
   const exactNumber = parseExactNumber(query);
   const exactRows =
     exactNumber === null ? [] : getRowsForNumber(collection.ltb, exactNumber);
@@ -240,36 +250,52 @@ function CollectionView({
 
   const filteredLtb = collection.ltb
     .filter((row) =>
-      matchesQuery(
-        row.number,
-        getCatalogEntry(catalog, row.number)?.title ?? null,
-        query,
-      ),
+      numberFilter !== null
+        ? numberFilter.has(row.number)
+        : matchesQuery(
+            row.number,
+            getCatalogEntry(catalog, row.number)?.title ?? null,
+            query,
+          ),
     )
     .sort((a, b) => a.number - b.number);
 
   const visibleSpecials = collection.specials
     .map((series) => ({
       name: series.name,
-      numbers: numericQuery
-        ? series.numbers.filter((number) =>
-            matchesQuery(number, null, query),
-          )
-        : series.numbers,
+      numbers:
+        numberFilter !== null
+          ? series.numbers.filter((number) => numberFilter.has(number))
+          : numericQuery
+            ? series.numbers.filter((number) =>
+                matchesQuery(number, null, query),
+              )
+            : series.numbers,
     }))
-    .filter((series) => !numericQuery || series.numbers.length > 0);
+    .filter(
+      (series) =>
+        numberFilter === null && !numericQuery
+          ? true
+          : series.numbers.length > 0,
+    );
 
-  const filteredDonaldDuck = numericQuery
-    ? collection.donaldDuck.filter((row) =>
-        matchesQuery(row.number, null, query),
-      )
-    : collection.donaldDuck;
+  const filteredDonaldDuck =
+    numberFilter !== null
+      ? collection.donaldDuck.filter((row) => numberFilter.has(row.number))
+      : numericQuery
+        ? collection.donaldDuck.filter((row) =>
+            matchesQuery(row.number, null, query),
+          )
+        : collection.donaldDuck;
 
-  const filteredPanzerknacker = numericQuery
-    ? collection.panzerknacker.filter((row) =>
-        matchesQuery(row.number, null, query),
-      )
-    : collection.panzerknacker;
+  const filteredPanzerknacker =
+    numberFilter !== null
+      ? collection.panzerknacker.filter((row) => numberFilter.has(row.number))
+      : numericQuery
+        ? collection.panzerknacker.filter((row) =>
+            matchesQuery(row.number, null, query),
+          )
+        : collection.panzerknacker;
 
   const tabs: Array<{ id: TabId; label: ReactNode }> = [
     { id: "ltb", label: <Trans>LTB</Trans> },
@@ -407,7 +433,7 @@ function CollectionView({
               type="search"
               className="input w-full"
               value={query}
-              placeholder={t`Nummer oder Titel suchen`}
+              placeholder={t`Nummern (bis zu 3) oder Titel suchen`}
               aria-label={t`Suche`}
               onChange={(event) => onQueryChange(event.target.value)}
             />
@@ -459,6 +485,71 @@ function CollectionView({
                     <Trans>Hinzufügen</Trans>
                   )}
                 </button>
+              )}
+            </div>
+          )}
+
+
+          {multiQuery !== null && (
+            <div className="rounded-box bg-base-200 px-3 py-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-semibold">
+                  <Trans>Nummern</Trans>
+                </span>
+                {multiQuery.numbers.map((number) => {
+                  const rows = getRowsForNumber(collection.ltb, number);
+                  const entry = getCatalogEntry(catalog, number);
+
+                  return (
+                    <span
+                      key={number}
+                      className={
+                        rows.length > 0
+                          ? "badge badge-success badge-lg"
+                          : "badge badge-ghost badge-lg"
+                      }
+                    >
+                      Nr. {number}
+                      {entry?.title != null && (
+                        <span className="ml-1 max-w-52 truncate text-xs opacity-80">
+                          {entry.title}
+                        </span>
+                      )}
+                      <span className="ml-1 text-xs">
+                        {rows.length > 0 ? (
+                          <Trans>Habe ich ({rows.length}×)</Trans>
+                        ) : (
+                          <Trans>Habe ich: Nein</Trans>
+                        )}
+                      </span>
+                    </span>
+                  );
+                })}
+                {multiQuery.invalid.map((token) => (
+                  <span key={token} className="badge badge-error badge-lg">
+                    <Trans>Ungültig: {token}</Trans>
+                  </span>
+                ))}
+                {canWrite && multiQuery.numbers.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-xs btn-primary ml-auto"
+                    onClick={() => {
+                      setFeedback(null);
+                      openAddDialog(multiQuery.numbers);
+                    }}
+                  >
+                    <Trans>Alle hinzufügen</Trans>
+                  </button>
+                )}
+              </div>
+              {multiQuery.tooMany && (
+                <p className="mt-1 text-xs opacity-70">
+                  <Trans>
+                    Höchstens {MAX_ADD_ITEMS} Nummern auf einmal; weitere werden
+                    ignoriert.
+                  </Trans>
+                </p>
               )}
             </div>
           )}

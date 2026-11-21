@@ -35,6 +35,16 @@ export const routes: ScreenshotRoute[] = [
     prepare: (page) => openTab(page, "Sonderserien"),
   },
   {
+    name: "search-multi",
+    path: "/",
+    auth: true,
+    expectedTitle: "LTB-Sammlung",
+    prepare: async (page) => {
+      await page.getByRole("searchbox", { name: "Suche" }).fill("98765, 98766, 219");
+      await page.waitForTimeout(300);
+    },
+  },
+  {
     name: "add-volume-dialog",
     path: "/",
     auth: true,

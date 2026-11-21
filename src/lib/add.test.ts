@@ -4,6 +4,7 @@ import {
   buildAddItems,
   extractNumberFromScan,
   getDuplicateNumbers,
+  parseSearchNumbers,
   parseVolumeInput,
   toAddItems,
   validateAddNumbers,
@@ -115,6 +116,43 @@ describe("buildAddItems", () => {
     expect(buildAddItems([{ number: 7, note: "  " }])).toEqual([
       { number: 7, containedIn: null },
     ]);
+  });
+});
+
+describe("parseSearchNumbers", () => {
+  it("erkennt zwei und drei Nummern", () => {
+    expect(parseSearchNumbers("12, 13")).toEqual({
+      numbers: [12, 13],
+      invalid: [],
+      tooMany: false,
+    });
+    expect(parseSearchNumbers(" 12  13,14 ")).toEqual({
+      numbers: [12, 13, 14],
+      invalid: [],
+      tooMany: false,
+    });
+  });
+
+  it("behaelt die ersten drei Nummern und meldet zu viele", () => {
+    expect(parseSearchNumbers("12, 13, 14, 15")).toEqual({
+      numbers: [12, 13, 14],
+      invalid: [],
+      tooMany: true,
+    });
+  });
+
+  it("nennt Ziffernfolgen ausserhalb des Bereichs", () => {
+    expect(parseSearchNumbers("0, 12, 100000")).toEqual({
+      numbers: [12],
+      invalid: ["0", "100000"],
+      tooMany: false,
+    });
+  });
+
+  it("laesst Textsuche und einzelne Nummern unangetastet", () => {
+    expect(parseSearchNumbers("Micky 219")).toBeNull();
+    expect(parseSearchNumbers("219")).toBeNull();
+    expect(parseSearchNumbers("219, Micky")).toBeNull();
   });
 });
 
