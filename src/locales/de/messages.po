@@ -107,7 +107,11 @@ msgstr "Englisch"
 msgid "Enthalten in"
 msgstr "Enthalten in"
 
-#: src/components/NumberGrid.tsx:32
+#: src/components/NumberGrid.tsx:34
+msgid "Fehlende anzeigen"
+msgstr "Fehlende anzeigen"
+
+#: src/components/NumberGrid.tsx:48
 msgid "fehlt"
 msgstr "fehlt"
 
@@ -202,7 +206,7 @@ msgstr "Nr. {number}"
 msgid "Nr. {number} – {title}"
 msgstr "Nr. {number} – {title}"
 
-#: src/components/NumberGrid.tsx:50
+#: src/components/NumberGrid.tsx:67
 msgid "Nummer {number} anzeigen"
 msgstr "Nummer {number} anzeigen"
 
@@ -210,7 +214,7 @@ msgstr "Nummer {number} anzeigen"
 msgid "Nummer oder Titel suchen"
 msgstr "Nummer oder Titel suchen"
 
-#: src/components/NumberGrid.tsx:25
+#: src/components/NumberGrid.tsx:29
 msgid "Nummern-Übersicht"
 msgstr "Nummern-Übersicht"
 
@@ -257,12 +261,12 @@ msgstr "Suche"
 msgid "Überblick"
 msgstr "Überblick"
 
-#: src/components/NumberGrid.tsx:29
+#: src/components/NumberGrid.tsx:44
 msgid "vorhanden"
 msgstr "vorhanden"
 
 #. placeholder {0}: ownedNumbers.size
-#: src/components/NumberGrid.tsx:35
+#: src/components/NumberGrid.tsx:52
 msgid "vorhanden: {0} / {maxNumber}"
 msgstr "vorhanden: {0} / {maxNumber}"
 

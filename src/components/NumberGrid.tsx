@@ -1,4 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import { useState } from "react";
 
 interface NumberGridProps {
   maxNumber: number;
@@ -12,7 +13,10 @@ export function NumberGrid({
   onSelect,
 }: NumberGridProps) {
   const { t } = useLingui();
-  const numbers = Array.from({ length: maxNumber }, (_, index) => index + 1);
+  const [showMissing, setShowMissing] = useState(false);
+  const numbers = Array.from({ length: maxNumber }, (_, index) => index + 1).filter(
+    (number) => showMissing || ownedNumbers.has(number),
+  );
 
   return (
     <section
@@ -24,13 +28,26 @@ export function NumberGrid({
           <h3 id="nummern-uebersicht" className="card-title text-base">
             <Trans>Nummern-Übersicht</Trans>
           </h3>
-          <div className="flex flex-wrap items-center gap-2 text-xs">
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <label className="flex cursor-pointer items-center gap-2">
+              <span>
+                <Trans>Fehlende anzeigen</Trans>
+              </span>
+              <input
+                type="checkbox"
+                className="toggle toggle-xs"
+                checked={showMissing}
+                onChange={(event) => setShowMissing(event.target.checked)}
+              />
+            </label>
             <span className="badge badge-sm">
               <Trans>vorhanden</Trans>
             </span>
-            <span className="badge badge-sm badge-outline">
-              <Trans>fehlt</Trans>
-            </span>
+            {showMissing && (
+              <span className="badge badge-sm badge-outline">
+                <Trans>fehlt</Trans>
+              </span>
+            )}
             <span className="opacity-60">
               <Trans>
                 vorhanden: {ownedNumbers.size} / {maxNumber}
