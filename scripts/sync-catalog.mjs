@@ -5,7 +5,7 @@
  * Cover werden ausschließlich verlinkt (Duckipedia-Thumbnails bzw. offizielle
  * Cover-URLs), nie heruntergeladen. Bei Fehlern wird die Datei nicht geschrieben.
  */
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -298,8 +298,65 @@ async function resolveCoverUrls(files) {
   return coverUrls;
 }
 
-function officialCoverUrl(number) {
-  return `${OFFICIAL_COVER_BASE}/LTB-${number}.jpg`;
+function officialCoverCandidates(number) {
+  const padded = String(number).padStart(3, "0");
+
+  return [
+    `${OFFICIAL_COVER_BASE}/LTB-${number}.jpg`,
+    `${OFFICIAL_COVER_BASE}/ltb_Aktuell_${padded}.jpg`,
+    `${OFFICIAL_COVER_BASE}/ltb_${number}.jpg`,
+    `${OFFICIAL_COVER_BASE}/ltb_1.NA_${number}.jpg`,
+    `${OFFICIAL_COVER_BASE}/ltb_EA_${number}.jpg`,
+    `${OFFICIAL_COVER_BASE}/ltb_EA_${number}_0.jpg`,
+  ];
+}
+
+async function urlExists(url) {
+  try {
+    const response = await fetch(url, {
+      method: "HEAD",
+      redirect: "follow",
+      signal: AbortSignal.timeout(15_000),
+      headers: { "user-agent": USER_AGENT },
+    });
+
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Probiert die bekannten Dateinamen-Schemata der offiziellen Seite durch und
+ * gibt nur URLs zurück, die wirklich mit HTTP 2xx antworten. Die Muster
+ * unterscheiden sich je nach Erscheinungszeitraum (LTB-123.jpg,
+ * ltb_Aktuell_016.jpg, ltb_216.jpg).
+ */
+async function resolveOfficialCoverUrls(numbers) {
+  const result = new Map();
+
+  for (let offset = 0; offset < numbers.length; offset += BATCH_SIZE) {
+    const batch = numbers.slice(offset, offset + BATCH_SIZE);
+
+    await Promise.all(
+      batch.map(async (number) => {
+        for (const candidate of officialCoverCandidates(number)) {
+          if (await urlExists(candidate)) {
+            result.set(number, candidate);
+            return;
+          }
+        }
+
+        result.set(number, null);
+      }),
+    );
+
+    if (offset + BATCH_SIZE < numbers.length) {
+      await sleep(BATCH_PAUSE_MS);
+    }
+  }
+
+  return result;
 }
 
 async function previousCatalogStats() {
@@ -352,11 +409,13 @@ async function main() {
     ...new Set([...coverFiles.keys(), ...titles.keys()]),
   ].sort((a, b) => a - b);
 
+  const officialCoverUrls = await resolveOfficialCoverUrls(numbers);
+
   const entries = numbers.map((number) => ({
     number,
     title: titles.get(number) ?? null,
     coverUrl: coverUrls.get(number) ?? null,
-    coverUrlOfficial: officialCoverUrl(number),
+    coverUrlOfficial: officialCoverUrls.get(number) ?? null,
   }));
 
   const catalog = {
@@ -365,7 +424,7 @@ async function main() {
         `https://de.duckipedia.org/wiki/${COVER_PAGE}`,
         `https://de.duckipedia.org/wiki/${ISSUE_PAGE}`,
         API_URL,
-        `${OFFICIAL_COVER_BASE}/LTB-<nummer>.jpg`,
+        `${OFFICIAL_COVER_BASE}/LTB-<nummer>.jpg (geprüfte Fallback-Muster)`,
       ],
       syncedAt: new Date().toISOString(),
     },
@@ -374,6 +433,12 @@ async function main() {
 
   const withTitle = entries.filter((entry) => entry.title !== null).length;
   const withCover = entries.filter((entry) => entry.coverUrl !== null).length;
+  const withOfficial = entries.filter(
+    (entry) => entry.coverUrlOfficial !== null,
+  ).length;
+  const withoutAnyCover = entries.filter(
+    (entry) => entry.coverUrl === null && entry.coverUrlOfficial === null,
+  ).length;
   const previous = await previousCatalogStats();
 
   if (
@@ -388,13 +453,21 @@ async function main() {
     );
   }
 
+  const temporaryFile = `${OUTPUT_FILE}.tmp`;
+
   await mkdir(dirname(OUTPUT_FILE), { recursive: true });
-  await writeFile(OUTPUT_FILE, `${JSON.stringify(catalog, null, 2)}\n`, "utf8");
+  await writeFile(
+    temporaryFile,
+    `${JSON.stringify(catalog, null, 2)}\n`,
+    "utf8",
+  );
+  await rename(temporaryFile, OUTPUT_FILE);
 
   console.info(
     `catalog.json geschrieben: ${entries.length} Einträge, ` +
       `${withTitle} Titel, ${withCover} Duckipedia-Cover, ` +
-      `${numbers.length - withCover} Einträge nur mit offizieller Cover-URL.`,
+      `${withOfficial} mit geprüfter offizieller Fallback-URL, ` +
+      `${withoutAnyCover} ohne Cover.`,
   );
 }
 

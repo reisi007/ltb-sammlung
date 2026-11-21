@@ -39,11 +39,15 @@ msgstr "{count} row"
 msgid "{count} Zeilen"
 msgstr "{count} rows"
 
-#: src/App.tsx:326
+#: src/App.tsx:328
 msgid "Bearbeiten folgt"
 msgstr "Editing coming soon"
 
-#: src/App.tsx:382
+#: src/App.tsx:320
+msgid "Bearbeiten kommt mit der eigenen API (Issue #2)."
+msgstr "Editing arrives with our own API (issue #2)."
+
+#: src/App.tsx:384
 msgid "Bereiche"
 msgstr "Sections"
 
@@ -52,7 +56,7 @@ msgstr "Sections"
 msgid "Cover und Titel synchronisiert: {0}"
 msgstr "Covers and titles synced: {0}"
 
-#: src/components/Cover.tsx:38
+#: src/components/Cover.tsx:41
 msgid "Cover von LTB Nr. {number}"
 msgstr "Cover of LTB No. {number}"
 
@@ -60,11 +64,11 @@ msgstr "Cover of LTB No. {number}"
 msgid "Cover: © Disney/Egmont. Die Rechte liegen bei den jeweiligen Rechteinhabern; Cover werden nur verlinkt, nicht gehostet."
 msgstr "Covers: © Disney/Egmont. All rights remain with their respective owners; covers are only linked, not hosted."
 
-#: src/App.tsx:621
+#: src/App.tsx:623
 msgid "Daten konnten nicht geladen werden."
 msgstr "Data could not be loaded."
 
-#: src/App.tsx:612
+#: src/App.tsx:614
 msgid "Daten werden geladen…"
 msgstr "Loading data…"
 
@@ -76,9 +80,9 @@ msgstr "Data sources"
 msgid "Deutsch"
 msgstr "German"
 
-#: src/App.tsx:235
-#: src/App.tsx:273
-#: src/App.tsx:513
+#: src/App.tsx:237
+#: src/App.tsx:275
+#: src/App.tsx:515
 msgid "Donald Duck"
 msgstr "Donald Duck"
 
@@ -90,12 +94,12 @@ msgstr "Duckipedia issue list"
 msgid "Duckipedia Covergalerie"
 msgstr "Duckipedia cover gallery"
 
-#: src/App.tsx:516
-#: src/App.tsx:535
+#: src/App.tsx:518
+#: src/App.tsx:537
 msgid "Eigene Reihe mit eigenen Nummern."
 msgstr "Separate series with its own numbers."
 
-#: src/App.tsx:465
+#: src/App.tsx:467
 msgid "Eigene Reihen mit eigenen Nummern, getrennt von den LTB-Nummern."
 msgstr "Separate series with their own numbers, independent of the LTB issues."
 
@@ -119,23 +123,23 @@ msgstr "missing"
 msgid "Google Sheet"
 msgstr "Google Sheet"
 
-#: src/App.tsx:367
+#: src/App.tsx:369
 msgid "Habe ich: Ja"
 msgstr "I have it: Yes"
 
-#: src/App.tsx:369
+#: src/App.tsx:371
 msgid "Habe ich: Nein"
 msgstr "I have it: No"
 
-#: src/App.tsx:412
+#: src/App.tsx:414
 msgid "Jede Zeile ist ein eigener Eintrag. „Enthalten in“ ist eine freie Notiz, keine Verknüpfung."
 msgstr "Each row is a separate entry. “Contained in” is a free-form note, not a link."
 
-#: src/App.tsx:305
+#: src/App.tsx:307
 msgid "Kamera-Scan ist noch nicht umgesetzt."
 msgstr "Camera scanning is not implemented yet."
 
-#: src/components/Cover.tsx:29
+#: src/components/Cover.tsx:32
 msgid "Kein Cover verfügbar"
 msgstr "No cover available"
 
@@ -151,20 +155,20 @@ msgstr "No title recorded"
 msgid "Keine Einträge für diese Suche."
 msgstr "No entries for this search."
 
-#: src/App.tsx:433
+#: src/App.tsx:435
 msgid "Keine LTB-Ausgaben erfasst."
 msgstr "No LTB issues recorded."
 
-#: src/App.tsx:435
+#: src/App.tsx:437
 msgid "Keine LTB-Ausgaben für „{query}“ gefunden."
 msgstr "No LTB issues found for “{query}”."
 
-#: src/App.tsx:475
+#: src/App.tsx:477
 msgid "Keine Sonderserien für diese Suche gefunden."
 msgstr "No special series found for this search."
 
-#: src/App.tsx:233
-#: src/App.tsx:251
+#: src/App.tsx:235
+#: src/App.tsx:253
 msgid "LTB"
 msgstr "LTB"
 
@@ -173,7 +177,7 @@ msgstr "LTB"
 msgid "LTB Nr. {0}"
 msgstr "LTB No. {0}"
 
-#: src/App.tsx:354
+#: src/App.tsx:356
 msgid "LTB Nr. {exactNumber}"
 msgstr "LTB No. {exactNumber}"
 
@@ -181,11 +185,11 @@ msgstr "LTB No. {exactNumber}"
 msgid "LTB-Sammlung"
 msgstr "LTB Collection"
 
-#: src/App.tsx:374
+#: src/App.tsx:376
 msgid "mehrfach erfasst"
 msgstr "recorded multiple times"
 
-#: src/App.tsx:409
+#: src/App.tsx:411
 msgid "Meine LTB-Ausgaben"
 msgstr "My LTB issues"
 
@@ -198,11 +202,11 @@ msgstr "My Lustiges Taschenbuch collection"
 msgid "Nr. {0}"
 msgstr "No. {0}"
 
-#: src/components/Cover.tsx:25
+#: src/components/Cover.tsx:28
 msgid "Nr. {number}"
 msgstr "No. {number}"
 
-#: src/components/Cover.tsx:21
+#: src/components/Cover.tsx:24
 msgid "Nr. {number} – {title}"
 msgstr "No. {number} – {title}"
 
@@ -210,7 +214,7 @@ msgstr "No. {number} – {title}"
 msgid "Nummer {number} anzeigen"
 msgstr "Show issue {number}"
 
-#: src/App.tsx:337
+#: src/App.tsx:339
 msgid "Nummer oder Titel suchen"
 msgstr "Search by issue number or title"
 
@@ -222,13 +226,13 @@ msgstr "Issue overview"
 msgid "Offizielle LTB-Seite"
 msgstr "Official LTB website"
 
-#: src/App.tsx:236
-#: src/App.tsx:284
-#: src/App.tsx:532
+#: src/App.tsx:238
+#: src/App.tsx:286
+#: src/App.tsx:534
 msgid "Panzerknacker & Co"
 msgstr "Beagle Boys & Co"
 
-#: src/App.tsx:313
+#: src/App.tsx:315
 msgid "QR-Scan folgt später"
 msgstr "QR scan coming later"
 
@@ -238,12 +242,12 @@ msgid "Sammlung synchronisiert: {0}"
 msgstr "Collection synced: {0}"
 
 #: src/App.tsx:318
-msgid "Schreiben direkt ins Google Sheet per OAuth ist geplant."
-msgstr "Writing directly to the Google Sheet via OAuth is planned."
+#~ msgid "Schreiben direkt ins Google Sheet per OAuth ist geplant."
+#~ msgstr "Writing directly to the Google Sheet via OAuth is planned."
 
-#: src/App.tsx:234
-#: src/App.tsx:262
-#: src/App.tsx:462
+#: src/App.tsx:236
+#: src/App.tsx:264
+#: src/App.tsx:464
 msgid "Sonderserien"
 msgstr "Special series"
 
@@ -252,12 +256,12 @@ msgstr "Special series"
 msgid "Sprache"
 msgstr "Language"
 
-#: src/App.tsx:300
-#: src/App.tsx:338
+#: src/App.tsx:302
+#: src/App.tsx:340
 msgid "Suche"
 msgstr "Search"
 
-#: src/App.tsx:247
+#: src/App.tsx:249
 msgid "Überblick"
 msgstr "Overview"
 
@@ -270,6 +274,6 @@ msgstr "owned"
 msgid "vorhanden: {0} / {maxNumber}"
 msgstr "owned: {0} / {maxNumber}"
 
-#: src/App.tsx:347
+#: src/App.tsx:349
 msgid "Zurücksetzen"
 msgstr "Reset"

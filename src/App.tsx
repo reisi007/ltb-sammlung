@@ -317,7 +317,7 @@ function CollectionView({
               </div>
               <div
                 className="tooltip tooltip-bottom"
-                data-tip={t`Schreiben direkt ins Google Sheet per OAuth ist geplant.`}
+                data-tip={t`Bearbeiten kommt mit der eigenen API (Issue #2).`}
               >
                 <button
                   type="button"

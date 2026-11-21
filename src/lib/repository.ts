@@ -5,10 +5,9 @@ import { loadCollection } from "./collection";
  * Datenzugriff für die Oberfläche.
  *
  * Die App kennt nur dieses Interface. Aktuell wird ausschließlich der lokale
- * Snapshot gelesen. Eine spätere Google-Sheets-Implementierung (OAuth, Scope
- * `https://www.googleapis.com/auth/spreadsheets`) kann denselben Vertrag
- * erfüllen und zusätzlich den Schreibvertrag unten anbieten, ohne dass die
- * Anzeige umgebaut werden muss.
+ * Snapshot gelesen. Eine spätere API-Implementierung (PHP + SQLite, Issue #2)
+ * kann denselben Vertrag erfüllen und zusätzlich den Schreibvertrag unten
+ * anbieten, ohne dass die Anzeige umgebaut werden muss.
  */
 export interface CollectionRepository {
   readonly id: string;

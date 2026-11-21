@@ -6,7 +6,7 @@
  * Verknüpfungen: "Enthalten in" bleibt eine freie Notiz pro Zeile, doppelte
  * Nummern bleiben erhalten.
  */
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseCsv } from "./csv.ts";
@@ -197,8 +197,25 @@ async function main() {
     );
   }
 
+  if (
+    collection.donaldDuck.length === 0 ||
+    collection.panzerknacker.length === 0
+  ) {
+    throw new Error(
+      "Tab „Donald Duck“ oder „Panzerknacker & Co“ lieferte keine Zeilen. " +
+        "Es wurde nichts geschrieben.",
+    );
+  }
+
+  const temporaryFile = `${OUTPUT_FILE}.tmp`;
+
   await mkdir(dirname(OUTPUT_FILE), { recursive: true });
-  await writeFile(OUTPUT_FILE, `${JSON.stringify(collection, null, 2)}\n`, "utf8");
+  await writeFile(
+    temporaryFile,
+    `${JSON.stringify(collection, null, 2)}\n`,
+    "utf8",
+  );
+  await rename(temporaryFile, OUTPUT_FILE);
 
   const specialsNumbers = collection.specials.reduce(
     (sum, series) => sum + series.numbers.length,
