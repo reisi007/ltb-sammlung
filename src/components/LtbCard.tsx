@@ -5,20 +5,30 @@ import { Cover } from "./Cover";
 interface LtbCardProps {
   row: CollectionRow;
   entry: CatalogEntry | null;
-  copies?: number;
+  /** Anzahl der Zeilen mit dieser Nummer (Duplikate bleiben erhalten). */
+  copies: number;
+  /** Alle Notizen der Zeilen, die diese Nummer teilen. */
+  containedIn: readonly string[];
   onAddCopy?: (number: number) => void;
 }
 
-export function LtbCard({ row, entry, copies = 1, onAddCopy }: LtbCardProps) {
+export function LtbCard({
+  row,
+  entry,
+  copies,
+  containedIn,
+  onAddCopy,
+}: LtbCardProps) {
   const { t } = useLingui();
 
   return (
     <article className="card bg-base-100 shadow-sm">
-      <figure className="relative aspect-[3/4] bg-base-200">
+      <figure className="relative bg-base-200">
         <Cover number={row.number} title={entry?.title ?? null} entry={entry} />
         {copies > 1 && (
           <span
             className="absolute bottom-2 right-2 inline-flex size-9 items-center justify-center rounded-full bg-secondary text-xs font-bold leading-none text-secondary-content shadow-lg ring-2 ring-base-100"
+            role="img"
             title={t`${copies} Exemplare erfasst`}
             aria-label={t`${copies} Exemplare erfasst`}
           >
@@ -33,12 +43,16 @@ export function LtbCard({ row, entry, copies = 1, onAddCopy }: LtbCardProps) {
         <p className="line-clamp-2 min-h-10 text-sm opacity-80">
           {entry?.title ?? <Trans>Kein Titel erfasst</Trans>}
         </p>
-        {row.containedIn !== null && (
+        {containedIn.length > 0 && (
           <div className="flex flex-wrap items-center gap-1">
             <span className="text-xs opacity-60">
               <Trans>Enthalten in</Trans>
             </span>
-            <span className="badge badge-outline">{row.containedIn}</span>
+            {containedIn.map((note) => (
+              <span key={note} className="badge badge-outline">
+                {note}
+              </span>
+            ))}
           </div>
         )}
         {onAddCopy !== undefined && (

@@ -77,16 +77,18 @@ export function resolveScan(
     return { kind: "invalid", number: null, isbn: null };
   }
 
-  for (const entry of catalog.entries) {
-    if (entry.isbn !== null && normalizeIsbn(entry.isbn) === isbn) {
-      return { kind: "isbn", number: entry.number, isbn };
-    }
-  }
-
+  // Zuerst die gelernte Zuordnung, dann der Katalog — dieselbe Reihenfolge
+  // wie die API in `api/src/Api.php`.
   const learned = isbnMap[isbn];
 
   if (typeof learned === "number") {
     return { kind: "isbn", number: learned, isbn };
+  }
+
+  for (const entry of catalog.entries) {
+    if (entry.isbn !== null && normalizeIsbn(entry.isbn) === isbn) {
+      return { kind: "isbn", number: entry.number, isbn };
+    }
   }
 
   return { kind: "unknown-isbn", number: null, isbn };

@@ -524,8 +524,8 @@ $missingLookup = $admin + ['QUERY_STRING' => 'foo=bar'];
 $response = $api->dispatch('GET', '/api/lookup', $missingLookup, '', 0);
 check('fehlende ISBN ist 400', $response['status'] === 400);
 
-$response = $api->dispatch('POST', '/api/ltb', $admin, '', 9000);
-check('Body ueber 8 KB ist 413', $response['status'] === 413);
+$response = $api->dispatch('POST', '/api/ltb', $admin, '', 70000);
+check('Body ueber 64 KB ist 413', $response['status'] === 413);
 
 $response = $api->dispatch('POST', '/api/ltb', $admin, '{kaputt', 7);
 check('kaputtes JSON ist 400', $response['status'] === 400);
@@ -533,9 +533,9 @@ check('kaputtes JSON ist 400', $response['status'] === 400);
 $response = $api->dispatch('POST', '/api/ltb', $admin, '', 0);
 check('leerer Body ist 400', $response['status'] === 400);
 
-$hugeWithoutLength = '{"items":[{"number":5,"containedIn":"' . str_repeat('x', 9000) . '"}]}';
+$hugeWithoutLength = '{"items":[{"number":5,"containedIn":"' . str_repeat('x', 70000) . '"}]}';
 $response = $api->dispatch('POST', '/api/ltb', $admin, $hugeWithoutLength, 0);
-check('Body ueber 8 KB ohne Content-Length ist 413', $response['status'] === 413);
+check('Body ueber 64 KB ohne Content-Length ist 413', $response['status'] === 413);
 
 $beforeSeries = count($store->collection('admin')['specials']);
 $tooManyNumbers = json_encode([

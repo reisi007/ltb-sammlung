@@ -139,20 +139,21 @@ export function AddVolumesDialog({
   const parsed = useMemo(
     () =>
       rows.map((row) => {
-        const numbers = row.value.trim() === "" ? [] : [extractNumberFromScan(row.value)];
+        const tokens = splitNumberInput(row.value);
+        const rowNumbers = tokens.map((token) => extractNumberFromScan(token));
 
-        return { row, number: numbers[0] ?? null };
+        return {
+          row,
+          numbers: rowNumbers.filter((value): value is number => value !== null),
+          invalid: rowNumbers.some((value) => value === null),
+        };
       }),
     [rows],
   );
 
-  const numbers = parsed.flatMap((entry) =>
-    entry.number === null ? [] : [entry.number],
-  );
+  const numbers = parsed.flatMap((entry) => entry.numbers);
 
-  const invalidRow = parsed.find(
-    (entry) => entry.row.value.trim() !== "" && entry.number === null,
-  );
+  const invalidRow = parsed.find((entry) => entry.invalid);
 
   async function assignIsbn() {
     if (pendingIsbn === null) {
@@ -269,7 +270,7 @@ export function AddVolumesDialog({
         </h2>
         <p className="mt-1 mb-4 text-sm opacity-70">
           <Trans>
-            Beliebig viele Bände auf einmal. Mehrere Nummern mit Komma,
+            Bis zu 200 Bände auf einmal. Mehrere Nummern mit Komma,
             Semikolon oder Zeilenumbruch trennen; unbekannte Nummern und
             doppelte Exemplare sind erlaubt.
           </Trans>
@@ -356,7 +357,7 @@ export function AddVolumesDialog({
             )}
             <form
               id="add-volumes-form"
-            className="flex flex-col gap-4"
+              className="flex flex-col gap-4"
             onSubmit={(event) => {
               event.preventDefault();
               handleSubmit().catch(() => {
@@ -366,23 +367,32 @@ export function AddVolumesDialog({
           >
             {rows.map((row, index) => {
               const entry = parsed[index];
-              const number = entry?.number ?? null;
+              // Mehrere Nummern in einer Zeile werden erst beim Verlassen
+              // aufgeteilt; bis dahin zeigt die Zeile bewusst keine Vorschau.
+              const number =
+                entry?.numbers.length === 1 ? entry.numbers[0] ?? null : null;
               const known = number === null ? null : getCatalogEntry(catalog, number);
               const owned = number === null ? 0 : getRowsForNumber(collection.ltb, number).length;
-              const invalid = row.value.trim() !== "" && number === null;
+              const invalid = entry?.invalid ?? false;
 
               return (
-                <div key={row.id} className="rounded-box bg-base-200 p-3">
+                <div
+                  key={row.id}
+                  data-row-id={row.id}
+                  className="rounded-box bg-base-200 p-3"
+                >
                   <div className="flex items-end gap-2">
                     <label className="flex-1">
                       <span className="label-text text-xs">
                         <Trans>Nummer</Trans>
                       </span>
-                      <input
-                        type="text"
+                      <textarea
+                        rows={1}
                         inputMode="numeric"
                         className={
-                          invalid ? "input input-error w-full" : "input w-full"
+                          invalid
+                            ? "textarea textarea-error w-full resize-none"
+                            : "textarea w-full resize-none"
                         }
                         placeholder={t`z. B. 219 oder LTB 219`}
                         value={row.value}
@@ -395,7 +405,18 @@ export function AddVolumesDialog({
                             ),
                           );
                         }}
-                        onBlur={() => {
+                        onBlur={(event) => {
+                          // Klick auf Scan/Entfernen in derselben Zeile darf die
+                          // Zeile nicht vor dem Click neu aufbauen.
+                          const next = event.relatedTarget;
+
+                          if (
+                            next instanceof HTMLElement &&
+                            next.closest(`[data-row-id="${row.id}"]`) !== null
+                          ) {
+                            return;
+                          }
+
                           setRows((current) => expandRows(current));
                         }}
                       />

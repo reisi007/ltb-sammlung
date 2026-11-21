@@ -182,8 +182,10 @@ export function getDuplicateNumbers(
 }
 
 /**
- * Frühere bzw. abgekürzte Reihennamen -> offizielle Schreibweise. Die gleiche
- * Zuordnung nutzt die Datenbank-Migration.
+ * Frühere bzw. abgekürzte Reihennamen -> offizielle Schreibweise. Die Liste ist
+ * die Obermenge für Eingaben im Dialog; die Datenbank-Migration
+ * (`SERIES_RENAMES` in `api/src/Store.php`) deckt die dort gespeicherten
+ * Altnamen exakt ab.
  */
 export const SERIES_ALIASES: Record<string, string> = {
   "enten edition": "LTB Enten-Edition",
@@ -199,6 +201,8 @@ export const SERIES_ALIASES: Record<string, string> = {
   "entenhausens unterwelt": "Entenhausens Unterwelt",
   "ltb sonderedition – entenhausens unterwelt": "Entenhausens Unterwelt",
   "ltb sonderedition - entenhausens unterwelt": "Entenhausens Unterwelt",
+  "sonderedition – entenhausens unterwelt": "Entenhausens Unterwelt",
+  "sonderedition - entenhausens unterwelt": "Entenhausens Unterwelt",
   "sonderedition entenhausens unterwelt": "Entenhausens Unterwelt",
 };
 

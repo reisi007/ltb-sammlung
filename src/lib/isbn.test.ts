@@ -73,13 +73,21 @@ describe("resolveScan", () => {
     });
   });
 
-  it("bevorzugt den Katalog vor einer gelernten Zuordnung", () => {
+  it("bevorzugt eine gelernte Zuordnung vor dem Katalog", () => {
     expect(
       resolveScan("9783770402199", catalog, { "9783770402199": 42 }),
     ).toEqual({
       kind: "isbn",
-      number: 219,
+      number: 42,
       isbn: "9783770402199",
+    });
+  });
+
+  it("greift weiterhin auf den Katalog zurück, wenn nichts gelernt ist", () => {
+    expect(resolveScan("9783770402212", catalog, {})).toEqual({
+      kind: "isbn",
+      number: 220,
+      isbn: "9783770402212",
     });
   });
 

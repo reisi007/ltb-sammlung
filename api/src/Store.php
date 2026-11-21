@@ -34,6 +34,10 @@ final class Store
         'LTB Sonderedition – Entenhausens Unterwelt' => 'Entenhausens Unterwelt',
         'LTB Sonderedition - Entenhausens Unterwelt' => 'Entenhausens Unterwelt',
         'Sonderedition – Entenhausens Unterwelt' => 'Entenhausens Unterwelt',
+        'Sonderedition - Entenhausens Unterwelt' => 'Entenhausens Unterwelt',
+        'Sonderedition Entenhausens Unterwelt' => 'Entenhausens Unterwelt',
+        'Ultimate Phantomias' => 'LTB Ultimate Phantomias',
+        'Young Comics' => 'LTB Young Comics',
     ];
 
     private PDO $db;

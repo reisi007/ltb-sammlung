@@ -347,6 +347,35 @@ export function getRowsForNumber(
   return rows.filter((row) => row.number === number);
 }
 
+export interface LtbRowGroup {
+  number: number;
+  rows: CollectionRow[];
+}
+
+/**
+ * Fasst doppelte LTB-Zeilen nur für die Anzeige zusammen. Die Datenhaltung
+ * bleibt unverändert: jede Zeile behält Nummer, Notiz und Occurrence; die
+ * Kachel zeigt die Anzahl als Badge und alle Notizen der Gruppe.
+ */
+export function groupLtbRows(rows: CollectionRow[]): LtbRowGroup[] {
+  const groups = new Map<number, CollectionRow[]>();
+
+  for (const row of rows) {
+    const group = groups.get(row.number);
+
+    if (group === undefined) {
+      groups.set(row.number, [row]);
+    } else {
+      group.push(row);
+    }
+  }
+
+  return [...groups.entries()].map(([number, groupedRows]) => ({
+    number,
+    rows: groupedRows,
+  }));
+}
+
 export function getStats(collection: Collection): CollectionStats {
   const ltbNumbers = new Set(collection.ltb.map((row) => row.number));
   const donaldDuckNumbers = new Set(

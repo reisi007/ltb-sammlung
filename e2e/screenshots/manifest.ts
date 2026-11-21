@@ -9,9 +9,18 @@ export interface ScreenshotRoute {
   prepare?: (page: Page) => Promise<void>;
 }
 
-async function openTab(page: Page, name: string) {
+async function openTab(page: Page, name: string | RegExp) {
   await page.getByRole("tab", { name }).click();
   await page.waitForTimeout(200);
+}
+
+/**
+ * Gibt lazy geladenen Covern Zeit, bevor der Screenshot entsteht. Ohne die
+ * Wartezeit zeigen Screenshots sonst Platzhalter, obwohl die URLs erreichbar
+ * sind.
+ */
+async function waitForCovers(page: Page) {
+  await page.waitForTimeout(1500);
 }
 
 export const routes: ScreenshotRoute[] = [
@@ -42,6 +51,26 @@ export const routes: ScreenshotRoute[] = [
     prepare: async (page) => {
       await page.getByRole("searchbox", { name: "Suche" }).fill("98765, 98766, 219");
       await page.waitForTimeout(300);
+    },
+  },
+  {
+    name: "donald-duck",
+    path: "/",
+    auth: true,
+    expectedTitle: "LTB-Sammlung",
+    prepare: async (page) => {
+      await openTab(page, /Donald Duck/);
+      await waitForCovers(page);
+    },
+  },
+  {
+    name: "panzerknacker",
+    path: "/",
+    auth: true,
+    expectedTitle: "LTB-Sammlung",
+    prepare: async (page) => {
+      await openTab(page, /Panzerknacker/);
+      await waitForCovers(page);
     },
   },
   {

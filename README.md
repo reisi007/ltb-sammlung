@@ -235,7 +235,7 @@ Technik:
   Arbeit ohne PHP-Stack möglich ist. `WritableCollectionRepository` schreibt
   über `POST/PATCH/DELETE /api/ltb`.
 - **API**: `api/index.php` (PHP 8, PDO/SQLite). Routen:
-  `GET /api/collection`, `POST /api/ltb` (1–3 Zeilen), `PATCH /api/ltb`,
+  `GET /api/collection`, `POST /api/ltb` (bis zu 200 Zeilen), `PATCH /api/ltb`,
   `DELETE /api/ltb`, `GET /api/lookup?isbn=…`, `GET /api/health`. Duplikate
   werden über `{ number, occurrence }` adressiert (0 = erste Zeile mit dieser
   Nummer).
@@ -268,9 +268,14 @@ Technik:
   ```bash
   scp deploy/ltb-vacuum.sh root@reisinger.pictures:/usr/local/bin/ltb-vacuum.sh
   ssh root@reisinger.pictures 'chmod 755 /usr/local/bin/ltb-vacuum.sh; \
-    (crontab -l 2>/dev/null; \
+    (crontab -l 2>/dev/null | grep -v "/usr/local/bin/ltb-vacuum.sh"; \
      echo "45 2 * * * /usr/local/bin/ltb-vacuum.sh >> /var/log/ltb-vacuum.log 2>&1") | crontab -'
   ```
+
+  Der `grep -v` entfernt vorhandene `ltb-vacuum`-Einträge vor dem Anhängen,
+  sodass nach dem Befehl genau ein Eintrag übrig bleibt — auch wenn die
+  Installation mehrfach läuft. Der Lauf um 02:45 liegt vor dem zentralen
+  Backup um 03:00, das die Tagesdatei anschließend mitprüft.
 
   Wiederherstellung: Datei entpacken, PHP-Container stoppen, Entpacktes als
   `ltb.sqlite` in das Volume `ltb_ltb_data` legen, dabei `ltb.sqlite-wal` und

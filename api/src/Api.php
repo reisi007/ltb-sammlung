@@ -482,8 +482,9 @@ final class Api
     private static function readJsonBody(string $raw, int $contentLength): array
     {
         // Beides pruefen: Content-Length kann fehlen (chunked), waehrend der
-        // Body trotzdem gross ist.
-        if ($contentLength > 8192 || strlen($raw) > 8192) {
+        // Body trotzdem gross ist. 64 KiB deckt 200 Baende mit je 200 Zeichen
+        // Notiz (~46 KiB) ab; alles darueber bleibt ein 413.
+        if ($contentLength > 65536 || strlen($raw) > 65536) {
             throw new ValidationError(413, 'Request-Body ist zu groß.');
         }
 

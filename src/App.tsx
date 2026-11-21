@@ -15,7 +15,6 @@ import { SeriesCover } from "./components/SeriesCover";
 import { isLocale, loadCatalog as loadMessages, type Locale } from "./i18n";
 import {
   MAX_SEARCH_NUMBERS,
-  getDuplicateNumbers,
   parseSearchNumbers,
   type AddItem,
 } from "./lib/add";
@@ -26,6 +25,7 @@ import {
   getRowsForNumber,
   getSeriesEntry,
   getStats,
+  groupLtbRows,
   isNumberQuery,
   loadCatalogData,
   matchesQuery,
@@ -227,7 +227,6 @@ function CollectionView({
   const { t } = useLingui();
   const stats = getStats(collection);
   const ownedNumbers = new Set(collection.ltb.map((row) => row.number));
-  const duplicates = getDuplicateNumbers(collection.ltb);
   // Die Nummern-Übersicht darf nicht von einer einzelnen Fehleingabe
   // (z. B. 99999) auf zehntausende Schaltflächen aufgeblasen werden.
   const knownMaxNumber = catalog.entries.reduce(
@@ -309,7 +308,7 @@ function CollectionView({
   const tabs: Array<{ id: TabId; label: ReactNode }> = [
     { id: "ltb", label: <Trans>LTB</Trans> },
     { id: "specials", label: <Trans>Sonderserien</Trans> },
-    { id: "donaldDuck", label: <Trans>Donald Duck</Trans> },
+    { id: "donaldDuck", label: <Trans>Donald Duck & Co</Trans> },
     { id: "panzerknacker", label: <Trans>Panzerknacker & Co</Trans> },
   ];
 
@@ -371,7 +370,7 @@ function CollectionView({
           </div>
           <div className="stat">
             <div className="stat-title">
-              <Trans>Donald Duck</Trans>
+              <Trans>Donald Duck & Co</Trans>
             </div>
             <div className="stat-value text-2xl">
               {formatCount(stats.donaldDuckNumbers, locale)}
@@ -636,13 +635,24 @@ function CollectionView({
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
-              {filteredLtb.map((row, index) => (
+              {groupLtbRows(filteredLtb).map((group) => (
                 <LtbCard
-                  key={`${row.number}-${index}`}
-                  row={row}
-                  entry={getCatalogEntry(catalog, row.number)}
-                  copies={duplicates.get(row.number) ?? 1}
-                  onAddCopy={canWrite ? (number) => openAddDialog([number]) : undefined}
+                  key={group.number}
+                  row={group.rows[0]}
+                  entry={getCatalogEntry(catalog, group.number)}
+                  copies={group.rows.length}
+                  containedIn={[
+                    ...new Set(
+                      group.rows
+                        .map((row) => row.containedIn)
+                        .filter((note): note is string => note !== null),
+                    ),
+                  ]}
+                  onAddCopy={
+                    canWrite
+                      ? (number) => openAddDialog([number])
+                      : undefined
+                  }
                 />
               ))}
             </div>
@@ -744,7 +754,7 @@ function CollectionView({
                           key={number}
                           className="flex flex-col items-center gap-1"
                         >
-                          <figure className="aspect-[3/4] w-full overflow-hidden rounded-box bg-base-200">
+                          <figure className="w-full overflow-hidden rounded-box bg-base-200">
                             <SeriesCover
                               number={number}
                               entry={getSeriesEntry(
@@ -802,7 +812,7 @@ function CollectionView({
         >
           <div>
             <h2 className="text-xl font-bold">
-              <Trans>Donald Duck</Trans>
+              <Trans>Donald Duck & Co</Trans>
             </h2>
             <p className="max-w-prose text-sm opacity-70">
               <Trans>Eigene Reihe mit eigenen Nummern.</Trans>
@@ -855,7 +865,9 @@ function CollectionView({
         seriesNames={[
           ...new Set([
             ...collection.specials.map((series) => series.name),
-            ...Object.keys(catalog.series),
+            ...Object.keys(catalog.series).filter(
+              (name) => name !== "Donald Duck" && name !== "Panzerknacker & Co",
+            ),
           ]),
         ].sort((a, b) => a.localeCompare(b, "de"))}
         initialSeries={seriesDialog?.series}

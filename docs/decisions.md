@@ -111,11 +111,15 @@ isbn_map(owner, isbn, number, created_at)
 - **SQLite ist die Quelle.** Sie liegt im Volume `ltb_ltb_data`; beim ersten
   Start wird sie aus `src/data/collection.json` geseedet. Danach schreibt nur
   noch die API. Das Google Sheet bleibt Seed, keine Rücksynchronisation.
-- **Schreibmodell:** `GET /api/collection`, `POST /api/ltb` (1–3 Zeilen),
-  `PATCH /api/ltb`, `DELETE /api/ltb`. Duplikate sind erlaubt und werden über
-  `{ number, occurrence }` adressiert. Jede Zeile behält ihre freie Notiz.
+- **Schreibmodell:** `GET /api/collection`, `POST /api/ltb` (bis zu 200
+  Zeilen), `PATCH /api/ltb`, `DELETE /api/ltb`. Duplikate sind erlaubt und
+  werden über `{ number, occurrence }` adressiert. Jede Zeile behält ihre
+  freie Notiz. Die Obergrenze ist `MAX_ADD_ITEMS` in
+  `api/src/Validation.php`.
 - **ISBN-Lookup:** `GET /api/lookup?isbn=…` prüft zuerst die gelernte
   Zuordnung des Benutzers (`isbn_map`), dann `catalog.entries[].isbn`. Der
+  Client (`src/lib/isbn.ts`) löst Scans in derselben Reihenfolge auf:
+  **gelernt vor Katalog** — Client und API verhalten sich identisch. Der
   Katalog ist optional (`LTB_CATALOG`, Deploy: `/srv/seed/catalog.json`);
   ohne Datei bleibt nur `isbn_map`. Ungültige ISBN ist 400, unbekannt 404.
 - **Auth der API:** Sessions in SQLite; ohne gültiges Cookie antwortet die

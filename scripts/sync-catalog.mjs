@@ -77,12 +77,16 @@ const SERIES_ALIASES = {
   "ltb-premium": "LTB Premium",
   "premium+": "LTB Premium +",
   "ultimativer phantomias": "LTB Ultimate Phantomias",
+  "ultimate phantomias": "LTB Ultimate Phantomias",
   young: "LTB Young Comics",
+  "young comics": "LTB Young Comics",
   halloween: "LTB Halloween",
   "ltb-history": "LTB History",
   "phantomias collection": "LTB Phantomias Collection",
   "ltb sonderedition – entenhausens unterwelt": "Entenhausens Unterwelt",
   "ltb sonderedition - entenhausens unterwelt": "Entenhausens Unterwelt",
+  "sonderedition – entenhausens unterwelt": "Entenhausens Unterwelt",
+  "sonderedition - entenhausens unterwelt": "Entenhausens Unterwelt",
   "sonderedition entenhausens unterwelt": "Entenhausens Unterwelt",
 };
 const OUTPUT_FILE = resolve(

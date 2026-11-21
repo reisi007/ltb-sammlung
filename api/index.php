@@ -15,8 +15,8 @@ declare(strict_types=1);
  *   POST   /api/logout       Session beenden
  *   GET    /api/me           angemeldeten Benutzer lesen
  *   GET    /api/collection   Sammlung lesen
- *   POST   /api/ltb          eine bis drei LTB-Zeilen anlegen (Duplikate erlaubt)
- *   POST   /api/series       Sonderserie anlegen (optional mit 1-3 Bänden)
+ *   POST   /api/ltb          bis zu 200 LTB-Zeilen anlegen (Duplikate erlaubt)
+ *   POST   /api/series       Sonderserie anlegen (optional mit bis zu 200 Bänden)
  *   POST   /api/series/volume  Bände zu einer Sonderserie hinzufügen
  *   DELETE /api/series/volume  Band aus einer Sonderserie entfernen
  *   PUT    /api/isbn         ISBN einer LTB-Nummer zuordnen (Scanner)
@@ -67,8 +67,8 @@ $rawBody = '';
 // Oberhalb des Limits wird nichts gelesen; die Route antwortet mit 413.
 // Auch ohne Content-Length (chunked) hoechstens ein Byte ueber dem Limit
 // lesen, damit ein riesiger Body keinen Speicher belegt.
-if ($length <= 8192) {
-    $rawBody = (string) file_get_contents('php://input', false, null, 0, 8193);
+if ($length <= 65536) {
+    $rawBody = (string) file_get_contents('php://input', false, null, 0, 65537);
 
     if ($length === 0) {
         $length = strlen($rawBody);

@@ -29,7 +29,7 @@ export function RowList({ rows, catalog, seriesName }: RowListProps) {
     <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
       {rows.map((row, index) => (
         <li key={`${row.number}-${index}`} className="flex flex-col gap-1">
-          <figure className="aspect-[3/4] overflow-hidden rounded-box bg-base-200">
+          <figure className="overflow-hidden rounded-box bg-base-200">
             <SeriesCover
               number={row.number}
               entry={getSeriesEntry(catalog, seriesName, row.number)}
