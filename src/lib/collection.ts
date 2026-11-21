@@ -42,9 +42,16 @@ export interface CatalogEntry {
   coverUrlOfficial: string | null;
 }
 
+export interface SeriesCatalogEntry {
+  number: number;
+  title: string | null;
+  coverUrl: string | null;
+}
+
 export interface Catalog {
   meta: CatalogMeta;
   entries: CatalogEntry[];
+  series: Record<string, SeriesCatalogEntry[]>;
 }
 
 export interface CollectionStats {
@@ -195,12 +202,57 @@ export function parseCatalog(value: unknown): Catalog {
     };
   });
 
+  const series: Record<string, SeriesCatalogEntry[]> = {};
+
+  if (catalog.series !== undefined) {
+    const rawSeries = requireRecord(catalog.series, "catalog.series");
+
+    for (const [name, value] of Object.entries(rawSeries)) {
+      if (!Array.isArray(value)) {
+        throw new Error(`Datenfeld „catalog.series.${name}“ ist keine Liste.`);
+      }
+
+      series[name] = value.map((entry, index) => {
+        const item = requireRecord(
+          entry,
+          `catalog.series.${name}[${index}]`,
+        );
+
+        if (typeof item.number !== "number" || !Number.isSafeInteger(item.number)) {
+          throw new Error(
+            `Datenfeld „catalog.series.${name}[${index}].number“ ist ungültig.`,
+          );
+        }
+
+        const readNullableString = (field: string): string | null => {
+          const rawValue = item[field];
+
+          if (rawValue === null) {
+            return null;
+          }
+
+          return requireString(
+            rawValue,
+            `catalog.series.${name}[${index}].${field}`,
+          );
+        };
+
+        return {
+          number: item.number,
+          title: readNullableString("title"),
+          coverUrl: readNullableString("coverUrl"),
+        };
+      });
+    }
+  }
+
   return {
     meta: {
       sources: [...meta.sources],
       syncedAt: requireString(meta.syncedAt, "catalog.meta.syncedAt"),
     },
     entries,
+    series,
   };
 }
 
@@ -230,6 +282,31 @@ export function getCatalogEntry(
   }
 
   return index.get(number) ?? null;
+}
+
+const seriesIndexes = new WeakMap<
+  Catalog,
+  Map<string, Map<number, SeriesCatalogEntry>>
+>();
+
+export function getSeriesEntry(
+  catalog: Catalog,
+  seriesName: string,
+  number: number,
+): SeriesCatalogEntry | null {
+  let index = seriesIndexes.get(catalog);
+
+  if (index === undefined) {
+    index = new Map();
+
+    for (const [name, entries] of Object.entries(catalog.series)) {
+      index.set(name, new Map(entries.map((entry) => [entry.number, entry])));
+    }
+
+    seriesIndexes.set(catalog, index);
+  }
+
+  return index.get(seriesName)?.get(number) ?? null;
 }
 
 export function getRowsForNumber(

@@ -9,11 +9,13 @@ import {
 import { LtbCard } from "./components/LtbCard";
 import { NumberGrid } from "./components/NumberGrid";
 import { RowList } from "./components/RowList";
+import { SeriesCover } from "./components/SeriesCover";
 import { isLocale, loadCatalog as loadMessages, type Locale } from "./i18n";
 import {
   formatCount,
   formatDateTime,
   getCatalogEntry,
+  getSeriesEntry,
   getRowsForNumber,
   getStats,
   isNumberQuery,
@@ -488,11 +490,26 @@ function CollectionView({
                         <VolumeCount count={series.numbers.length} />
                       </span>
                     </div>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
                       {series.numbers.map((number) => (
-                        <span key={number} className="badge badge-outline">
-                          {number}
-                        </span>
+                        <div
+                          key={number}
+                          className="flex flex-col items-center gap-1"
+                        >
+                          <figure className="aspect-[3/4] w-full overflow-hidden rounded-box bg-base-200">
+                            <SeriesCover
+                              number={number}
+                              entry={getSeriesEntry(
+                                catalog,
+                                series.name,
+                                number,
+                              )}
+                            />
+                          </figure>
+                          <span className="badge badge-sm badge-outline">
+                            {number}
+                          </span>
+                        </div>
                       ))}
                     </div>
                   </div>

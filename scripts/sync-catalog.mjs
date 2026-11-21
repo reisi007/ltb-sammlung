@@ -14,6 +14,24 @@ const COVER_PAGE = "Covergalerie_Lustiges_Taschenbuch";
 const ISSUE_PAGE = "Ausgabenliste_Lustiges_Taschenbuch";
 const OFFICIAL_COVER_BASE =
   "https://www.lustiges-taschenbuch.de/sites/default/files/cover";
+const OFFICIAL_SITE_BASE = "https://www.lustiges-taschenbuch.de";
+const SERIES_BASE = `${OFFICIAL_SITE_BASE}/ausgaben/nebenreihen`;
+
+/**
+ * Sheet-Name -> Slug der offiziellen Nebenreihen-Seite. Reihen ohne sichere
+ * Entsprechung (z. B. „Entenhausens Unterwelt") bleiben bewusst weg und
+ * bekommen kein Cover.
+ */
+const SPECIAL_SERIES = [
+  { name: "LTB Spezial", slug: "spezial" },
+  { name: "Enten Edition", slug: "enten-edition" },
+  { name: "LTB-Premium", slug: "premium" },
+  { name: "Premium+", slug: "ltb-premium-plus" },
+  { name: "Ultimativer Phantomias", slug: "ultimate-phantomias" },
+  { name: "Young", slug: "ltb-young-comics" },
+  { name: "Halloween", slug: "halloween" },
+  { name: "LTB-History", slug: "history" },
+];
 const OUTPUT_FILE = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "../src/data/catalog.json",
@@ -359,6 +377,133 @@ async function resolveOfficialCoverUrls(numbers) {
   return result;
 }
 
+async function fetchHtml(url, label) {
+  let lastError = null;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        redirect: "follow",
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        headers: {
+          accept: "text/html",
+          "user-agent": USER_AGENT,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} ${response.statusText}`);
+      }
+
+      return await response.text();
+    } catch (error) {
+      lastError = error;
+
+      if (attempt < MAX_RETRIES) {
+        const waitMs = 750 * 2 ** attempt;
+        console.info(
+          `${label}: Versuch ${attempt + 1} fehlgeschlagen (${errorMessage(error)}), ` +
+            `neuer Versuch in ${waitMs} ms.`,
+        );
+        await sleep(waitMs);
+      }
+    }
+  }
+
+  throw new Error(`${label}: ${errorMessage(lastError)}`);
+}
+
+function decodeHtml(value) {
+  return value
+    .replaceAll("&amp;", "&")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#39;", "'")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">");
+}
+
+function stripHtml(value) {
+  return decodeHtml(value.replace(/<[^>]*>/g, " "))
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Liest eine Nebenreihen-Seite (eine Paginierungsseite) aus. Die Struktur ist:
+ * <a href="…/band-133"><img src="…" alt="LTB Spezial 133 - Titel" />
+ * <p><span class="field--name-title">Titel</span></p></a>
+ */
+function parseSeriesPage(html, label) {
+  const entries = new Map();
+  const anchorPattern =
+    /<a\s+href="([^"]*band-(\d+)[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
+  let match = anchorPattern.exec(html);
+
+  while (match !== null) {
+    const [, , rawNumber, inner] = match;
+    const image = /<img[^>]*src="([^"]+)"[^>]*alt="([^"]*)"/i.exec(inner);
+
+    if (image !== null) {
+      const number = Number.parseInt(rawNumber, 10);
+      const source = image[1];
+      const alt = decodeHtml(image[2]);
+      const titleMatch =
+        /<span[^>]*class="[^"]*field--name-title[^"]*"[^>]*>([\s\S]*?)<\/span>/i.exec(
+          inner,
+        );
+      const title =
+        titleMatch !== null
+          ? stripHtml(titleMatch[1])
+          : alt.split(" - ").slice(1).join(" - ");
+
+      if (!entries.has(number)) {
+        entries.set(number, {
+          number,
+          title: title === "" ? null : title,
+          coverUrl: source.startsWith("http")
+            ? source
+            : `${OFFICIAL_SITE_BASE}${source}`,
+        });
+      }
+    }
+
+    match = anchorPattern.exec(html);
+  }
+
+  if (entries.size === 0) {
+    throw new Error(`${label}: keine Bände auf der Seite gefunden.`);
+  }
+
+  return [...entries.values()].sort((a, b) => a.number - b.number);
+}
+
+async function crawlSeries({ name, slug }) {
+  const baseUrl = `${SERIES_BASE}/${slug}`;
+  const entries = new Map();
+  let page = 0;
+
+  while (page < 30) {
+    const url = page === 0 ? baseUrl : `${baseUrl}?page=${page}`;
+    const label = `${name} (${url})`;
+    const html = await fetchHtml(url, label);
+
+    for (const entry of parseSeriesPage(html, label)) {
+      if (!entries.has(entry.number)) {
+        entries.set(entry.number, entry);
+      }
+    }
+
+    if (!/rel="next"/i.test(html)) {
+      break;
+    }
+
+    page += 1;
+    await sleep(BATCH_PAUSE_MS);
+  }
+
+  return [...entries.values()].sort((a, b) => a.number - b.number);
+}
+
 async function previousCatalogStats() {
   try {
     const previous = JSON.parse(await readFile(OUTPUT_FILE, "utf8"));
@@ -418,6 +563,20 @@ async function main() {
     coverUrlOfficial: officialCoverUrls.get(number) ?? null,
   }));
 
+  const series = {};
+
+  for (const definition of SPECIAL_SERIES) {
+    const seriesEntries = await crawlSeries(definition);
+
+    if (seriesEntries.length === 0) {
+      throw new Error(
+        `${definition.name}: keine Bände gefunden. Es wurde nichts geschrieben.`,
+      );
+    }
+
+    series[definition.name] = seriesEntries;
+  }
+
   const catalog = {
     meta: {
       sources: [
@@ -425,10 +584,12 @@ async function main() {
         `https://de.duckipedia.org/wiki/${ISSUE_PAGE}`,
         API_URL,
         `${OFFICIAL_COVER_BASE}/LTB-<nummer>.jpg (geprüfte Fallback-Muster)`,
+        `${SERIES_BASE}/<slug>`,
       ],
       syncedAt: new Date().toISOString(),
     },
     entries,
+    series,
   };
 
   const withTitle = entries.filter((entry) => entry.title !== null).length;
@@ -463,11 +624,17 @@ async function main() {
   );
   await rename(temporaryFile, OUTPUT_FILE);
 
+  const seriesCount = Object.values(series).reduce(
+    (sum, list) => sum + list.length,
+    0,
+  );
+
   console.info(
     `catalog.json geschrieben: ${entries.length} Einträge, ` +
       `${withTitle} Titel, ${withCover} Duckipedia-Cover, ` +
       `${withOfficial} mit geprüfter offizieller Fallback-URL, ` +
-      `${withoutAnyCover} ohne Cover.`,
+      `${withoutAnyCover} ohne Cover, ` +
+      `${Object.keys(series).length} Nebenreihen (${seriesCount} Bände).`,
   );
 }
 

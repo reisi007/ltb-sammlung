@@ -5,6 +5,7 @@ import {
   getCatalogEntry,
   getOfficialCoverUrl,
   getRowsForNumber,
+  getSeriesEntry,
   getStats,
   isNumberQuery,
   matchesQuery,
@@ -56,6 +57,16 @@ const catalogFixture = {
       coverUrlOfficial: "https://example.test/official-219.jpg",
     },
   ],
+  series: {
+    "LTB Spezial": [
+      {
+        number: 133,
+        title: "Guten Appetit!",
+        coverUrl: "https://example.test/spezial-133.jpg",
+      },
+      { number: 132, title: null, coverUrl: null },
+    ],
+  },
 };
 
 const collection: Collection = parseCollection(collectionFixture);
@@ -105,6 +116,26 @@ describe("parseCatalog", () => {
         entries: [{ number: 1, coverUrl: null, coverUrlOfficial: null }],
       }),
     ).toThrow(/title/);
+  });
+});
+
+describe("getSeriesEntry", () => {
+  it("findet Sonderserien-Einträge und liefert null für Unbekanntes", () => {
+    expect(getSeriesEntry(catalog, "LTB Spezial", 133)?.coverUrl).toBe(
+      "https://example.test/spezial-133.jpg",
+    );
+    expect(getSeriesEntry(catalog, "LTB Spezial", 999)).toBeNull();
+    expect(getSeriesEntry(catalog, "Unbekannt", 133)).toBeNull();
+  });
+
+  it("verträgt Kataloge ohne series-Feld", () => {
+    const legacy = parseCatalog({
+      meta: { sources: [], syncedAt: "2026-11-21T12:00:00.000Z" },
+      entries: [],
+    });
+
+    expect(legacy.series).toEqual({});
+    expect(getSeriesEntry(legacy, "LTB Spezial", 1)).toBeNull();
   });
 });
 
