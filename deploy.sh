@@ -58,6 +58,7 @@ if [[ "$DRY_RUN" == true ]]; then
   echo "  5. rsync ./api/ $API_REMOTE und src/data/collection.json nach $SEED_REMOTE"
   echo "  6. compose.yaml nach $STACK_DIR und 'docker compose up -d'"
   echo "  7. curl / (302 auf /login.html), /api/health (ok) und /api/collection (401)"
+  echo "  8. Login ueber die API, danach muessen meta.source=sqlite und LTB-Zeilen vorhanden sein"
   exit 0
 fi
 
@@ -159,6 +160,12 @@ if [[ "$collection_status" != "401" ]]; then
 fi
 echo "API gesund, Sammlung ohne Cookie geschuetzt (401)"
 
+if [[ -z "${LTB_USER:-}" || -z "${LTB_PASSWORD:-}" ]]; then
+  echo "FEHLER: LTB_USER und LTB_PASSWORD sind Pflicht." >&2
+  echo "        Ohne Login kann der Deploy nicht pruefen, ob die Datenbank Daten hat." >&2
+  exit 1
+fi
+
 if [[ -n "${LTB_USER:-}" && -n "${LTB_PASSWORD:-}" ]]; then
   cookie_jar="$(mktemp)"
   trap 'rm -f "$cookie_jar"' EXIT
@@ -180,7 +187,13 @@ if [[ -n "${LTB_USER:-}" && -n "${LTB_PASSWORD:-}" ]]; then
   fi
 
   # Eine leere oder nicht geseedete Datenbank darf keinen gruenen Deploy geben.
-  ltb_rows="$(python3 -c 'import json,sys; d=json.load(sys.stdin); print(len(d.get("ltb", [])) if d.get("meta", {}).get("source") == "sqlite" else 0)' < "$collection_body" || echo 0)"
+  # Bewusst mit node (ohnehin Voraussetzung) statt eines weiteren Tools.
+  ltb_rows="$(node -e '
+const fs = require("node:fs");
+const data = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+const rows = data.meta?.source === "sqlite" ? data.ltb?.length ?? 0 : 0;
+console.log(rows);
+' "$collection_body" 2>/dev/null || echo 0)"
   rm -f "$collection_body"
 
   if [[ "${ltb_rows:-0}" -lt 1 ]]; then

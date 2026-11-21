@@ -58,6 +58,7 @@ Der Dev-Server läuft wegen des GitHub-Pages-Basispfads unter
 | `npm run i18n:compile` | `.po`-Kataloge kompilieren (der Vite-Plugin kompiliert sonst beim Build) |
 | `npm run data:check` | prüft, dass echte Daten statt der Platzhalter vorliegen |
 | `npm run icons` | erzeugt die PWA-PNGs aus `public/icon*.svg` |
+| `npm run test:screenshots` | UI-Review: Screenshots der Live-Seite (Desktop + Mobil) nach `test-results/ui-screenshots/` |
 
 ### Daten-Sync konfigurieren
 
@@ -290,8 +291,10 @@ wie für `code.all-the.rest`, aber ohne Browser-Basic-Dialog.
 `./deploy.sh --dry-run` zeigt die Schritte ohne Upload. Der PHP-Stack
 (`php:8.3-fpm-alpine`, 128 MB Memory-Limit) läuft als eigenes Compose-Projekt
 `ltb`; die Caddy-Konfiguration routet `/api/*` per FastCGI dorthin.
-`LTB_USER`/`LTB_PASSWORD` in der Umgebung aktivieren beim Deploy zusätzlich
-einen Login- und Lesetest gegen die API.
+`LTB_USER` und `LTB_PASSWORD` sind beim Deploy **Pflicht**: Das Script meldet
+sich über die API an und bricht ab, wenn die Sammlung nicht aus SQLite kommt
+oder keine LTB-Zeilen liefert. Ein grüner Deploy mit leerer Datenbank ist damit
+ausgeschlossen.
 
 Die App ist eine Progressive Web App (`vite-plugin-pwa`): `manifest.webmanifest`,
 Service Worker und Icons unter `public/icons/`. Die Icons sind ein eigenes,
@@ -306,6 +309,17 @@ Host. Das Script legt das Zielverzeichnis bei Bedarf an (`1002:webgroup`, Modus
 Root-Basispfad `/assets/` verwendet. Nach dem Sync testet er
 `https://ltb.all-the.rest/` (ohne Cookie erwartet: `302` auf `/login.html`) und
 lädt `/login.html` samt der dort referenzierten Assets ohne Cookie (je `200`).
+
+### UI-Review (Screenshots)
+
+`npm run test:screenshots` (Playwright, Chromium einmalig mit
+`npx playwright install chromium`) erfasst die Live-Seite in Desktop- und
+Mobilgröße: Anmeldung, Sammlung, Sonderserien und beide Hinzufügen-Dialoge.
+Die Routen und Zustände stehen in `e2e/screenshots/manifest.ts`, die Bilder
+landen unter `test-results/ui-screenshots/` (nicht im Repository). Zugang über
+`UI_REVIEW_USER`/`UI_REVIEW_PASSWORD`; ein lokales Ziel per
+`UI_REVIEW_BASE_URL`. Der Lauf ist bewusst nicht Teil der CI, weil er gegen die
+Live-Instanz geht.
 
 ## Cover-Rechte
 
