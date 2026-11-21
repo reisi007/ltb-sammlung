@@ -31,6 +31,12 @@ export interface NewCollectionRow {
   readonly containedIn: string | null;
 }
 
+export interface SeriesResult {
+  readonly name: string;
+  readonly added: number;
+  readonly skipped: number;
+}
+
 export interface WritableCollectionRepository extends CollectionRepository {
   readonly capabilities: {
     readonly write: true;
@@ -38,6 +44,8 @@ export interface WritableCollectionRepository extends CollectionRepository {
   addLtbRows(rows: readonly NewCollectionRow[]): Promise<number>;
   updateLtbRow(key: CollectionRowKey, containedIn: string | null): Promise<void>;
   removeLtbRow(key: CollectionRowKey): Promise<void>;
+  addSeries(name: string, numbers: readonly number[]): Promise<SeriesResult>;
+  addSeriesNumbers(name: string, numbers: readonly number[]): Promise<SeriesResult>;
 }
 
 export function isWritableRepository(
@@ -123,6 +131,30 @@ export function createHttpRepository(baseUrl = ""): WritableCollectionRepository
         method: "DELETE",
         body: JSON.stringify(key),
       });
+    },
+    async addSeries(name, numbers) {
+      const payload = (await requestJson(`${baseUrl}/api/series`, {
+        method: "POST",
+        body: JSON.stringify({ name, numbers }),
+      })) as { name?: unknown; added?: unknown; skipped?: unknown };
+
+      return {
+        name: typeof payload.name === "string" ? payload.name : name,
+        added: typeof payload.added === "number" ? payload.added : 0,
+        skipped: typeof payload.skipped === "number" ? payload.skipped : 0,
+      };
+    },
+    async addSeriesNumbers(name, numbers) {
+      const payload = (await requestJson(`${baseUrl}/api/series/volume`, {
+        method: "POST",
+        body: JSON.stringify({ series: name, numbers }),
+      })) as { series?: unknown; added?: unknown; skipped?: unknown };
+
+      return {
+        name: typeof payload.series === "string" ? payload.series : name,
+        added: typeof payload.added === "number" ? payload.added : 0,
+        skipped: typeof payload.skipped === "number" ? payload.skipped : 0,
+      };
     },
   };
 }

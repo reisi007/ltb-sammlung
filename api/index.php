@@ -12,6 +12,9 @@ declare(strict_types=1);
  * Routen:
  *   GET    /api/collection   Sammlung lesen
  *   POST   /api/ltb          eine bis drei LTB-Zeilen anlegen (Duplikate erlaubt)
+ *   POST   /api/series       Sonderserie anlegen (optional mit 1-3 Bänden)
+ *   POST   /api/series/volume  Bände zu einer Sonderserie hinzufügen
+ *   DELETE /api/series/volume  Band aus einer Sonderserie entfernen
  *   PATCH  /api/ltb          Notiz einer Zeile ändern (number + occurrence)
  *   DELETE /api/ltb          Zeile löschen (number + occurrence)
  *   GET    /api/health       Lebenszeichen ohne Daten
@@ -153,6 +156,60 @@ try {
             $item['containedIn']
         )) {
             fail(404, 'Zeile nicht gefunden.');
+        }
+
+        respond(200, ['ok' => true]);
+    }
+
+    if ($path === '/api/series' && $method === 'POST') {
+        assert_same_origin();
+        $body = read_json_body();
+        $name = validate_series_name($body['name'] ?? null);
+        $name = $collectionStore->createSeries($name);
+        $added = 0;
+        $skipped = 0;
+
+        if (array_key_exists('numbers', $body)) {
+            $result = $collectionStore->addSeriesNumbers(
+                $name,
+                validate_series_numbers($body['numbers'])
+            );
+            $added = $result['added'];
+            $skipped = $result['skipped'];
+        }
+
+        respond(201, ['name' => $name, 'added' => $added, 'skipped' => $skipped]);
+    }
+
+    if ($path === '/api/series/volume' && $method === 'POST') {
+        assert_same_origin();
+        $body = read_json_body();
+        $series = $collectionStore->findSeries(validate_series_name($body['series'] ?? null));
+
+        if ($series === null) {
+            fail(404, 'Sonderserie nicht gefunden.');
+        }
+
+        $result = $collectionStore->addSeriesNumbers(
+            $series,
+            validate_series_numbers($body['numbers'] ?? null)
+        );
+        respond(201, ['series' => $series, 'added' => $result['added'], 'skipped' => $result['skipped']]);
+    }
+
+    if ($path === '/api/series/volume' && $method === 'DELETE') {
+        assert_same_origin();
+        $body = read_json_body();
+        $series = $collectionStore->findSeries(validate_series_name($body['series'] ?? null));
+
+        if ($series === null) {
+            fail(404, 'Sonderserie nicht gefunden.');
+        }
+
+        $numbers = validate_series_numbers([$body['number'] ?? null]);
+
+        if (!$collectionStore->removeSeriesNumber($series, $numbers[0])) {
+            fail(404, 'Band nicht gefunden.');
         }
 
         respond(200, ['ok' => true]);

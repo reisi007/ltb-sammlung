@@ -288,6 +288,77 @@ final class Store
         return isset($ids[$occurrence]) ? (int) $ids[$occurrence] : null;
     }
 
+    public function createSeries(string $name): string
+    {
+        $existing = $this->findSeries($name);
+
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        $position = (int) $this->db
+            ->query('SELECT COALESCE(MAX(position), -1) + 1 FROM series')
+            ->fetchColumn();
+
+        $statement = $this->db->prepare(
+            'INSERT INTO series (name, position) VALUES (?, ?)'
+        );
+        $statement->execute([$name, $position]);
+
+        return $name;
+    }
+
+    /** Sucht eine Reihe ohne Rücksicht auf Groß-/Kleinschreibung. */
+    public function findSeries(string $name): ?string
+    {
+        $statement = $this->db->prepare(
+            'SELECT name FROM series WHERE lower(name) = lower(?) LIMIT 1'
+        );
+        $statement->execute([$name]);
+        $found = $statement->fetchColumn();
+
+        return $found === false ? null : (string) $found;
+    }
+
+    /**
+     * @param list<int> $numbers
+     * @return array{added: int, skipped: int}
+     */
+    public function addSeriesNumbers(string $series, array $numbers): array
+    {
+        $insert = $this->db->prepare(
+            'INSERT OR IGNORE INTO series_numbers (series, number) VALUES (?, ?)'
+        );
+        $added = 0;
+
+        $this->db->beginTransaction();
+
+        try {
+            foreach ($numbers as $number) {
+                $insert->execute([$series, $number]);
+                $added += $insert->rowCount();
+            }
+
+            $this->db->commit();
+        } catch (Throwable $error) {
+            $this->db->rollBack();
+
+            throw $error;
+        }
+
+        return ['added' => $added, 'skipped' => count($numbers) - $added];
+    }
+
+    public function removeSeriesNumber(string $series, int $number): bool
+    {
+        $statement = $this->db->prepare(
+            'DELETE FROM series_numbers WHERE series = ? AND number = ?'
+        );
+        $statement->execute([$series, $number]);
+
+        return $statement->rowCount() > 0;
+    }
+
     public function counts(): array
     {
         $statement = $this->db->query(

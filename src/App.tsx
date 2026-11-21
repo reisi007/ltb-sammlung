@@ -1,5 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useEffect, useState, type ReactNode } from "react";
+import { AddSeriesDialog } from "./components/AddSeriesDialog";
 import { AddVolumesDialog } from "./components/AddVolumesDialog";
 import {
   MatchCount,
@@ -31,6 +32,7 @@ import {
   isWritableRepository,
   loadInitialData,
   type CollectionRepository,
+  type SeriesResult,
 } from "./lib/repository";
 
 type TabId = "ltb" | "specials" | "donaldDuck" | "panzerknacker";
@@ -190,6 +192,10 @@ interface CollectionViewProps {
   onQueryChange: (query: string) => void;
   onTabChange: (tab: TabId) => void;
   onAddVolumes: (items: readonly AddItem[]) => Promise<void>;
+  onAddSeries: (
+    series: string,
+    numbers: readonly number[],
+  ) => Promise<SeriesResult>;
 }
 
 function CollectionView({
@@ -202,6 +208,7 @@ function CollectionView({
   onQueryChange,
   onTabChange,
   onAddVolumes,
+  onAddSeries,
 }: CollectionViewProps) {
   const { t } = useLingui();
   const stats = getStats(collection);
@@ -209,6 +216,10 @@ function CollectionView({
   const duplicates = getDuplicateNumbers(collection.ltb);
   const [addOpen, setAddOpen] = useState(false);
   const [addNumbers, setAddNumbers] = useState<readonly number[] | undefined>();
+  const [seriesDialog, setSeriesDialog] = useState<{
+    series?: string;
+    numbers?: readonly number[];
+  } | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const exactNumber = parseExactNumber(query);
   const exactRows =
@@ -275,6 +286,15 @@ function CollectionView({
       items.length === 1
         ? t`${items.length} Band hinzugefügt.`
         : t`${items.length} Bände hinzugefügt.`,
+    );
+  }
+
+  async function handleAddSeries(series: string, numbers: readonly number[]) {
+    const result = await onAddSeries(series, numbers);
+    setFeedback(
+      result.skipped > 0
+        ? t`${result.name}: ${result.added} Bände gespeichert, ${result.skipped} bereits vorhanden.`
+        : t`${result.name}: ${result.added} Bände gespeichert.`,
     );
   }
 
@@ -541,6 +561,7 @@ function CollectionView({
                   row={row}
                   entry={getCatalogEntry(catalog, row.number)}
                   copies={duplicates.get(row.number) ?? 1}
+                  onAddCopy={canWrite ? (number) => openAddDialog([number]) : undefined}
                 />
               ))}
             </div>
@@ -555,17 +576,51 @@ function CollectionView({
           aria-labelledby="tab-specials"
           className="flex flex-col gap-4"
         >
-          <div>
-            <h2 className="text-xl font-bold">
-              <Trans>Sonderserien</Trans>
-            </h2>
-            <p className="max-w-prose text-sm opacity-70">
-              <Trans>
-                Eigene Reihen mit eigenen Nummern, getrennt von den
-                LTB-Nummern.
-              </Trans>
-            </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold">
+                <Trans>Sonderserien</Trans>
+              </h2>
+              <p className="max-w-prose text-sm opacity-70">
+                <Trans>
+                  Eigene Reihen mit eigenen Nummern, getrennt von den
+                  LTB-Nummern.
+                </Trans>
+              </p>
+            </div>
+            {canWrite && (
+              <button
+                type="button"
+                className="btn btn-sm btn-primary"
+                onClick={() => {
+                  setFeedback(null);
+                  setSeriesDialog({});
+                }}
+              >
+                <Trans>Reihe hinzufügen</Trans>
+              </button>
+            )}
           </div>
+
+          {visibleSpecials.length > 0 && (
+            <nav aria-label={t`Sonderserien`} className="flex flex-wrap gap-2">
+              {visibleSpecials.map((series) => (
+                <button
+                  key={series.name}
+                  type="button"
+                  className="btn btn-xs btn-outline"
+                  onClick={() => {
+                    document
+                      .getElementById(`serie-${series.name}`)
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                >
+                  {series.name}
+                  <span className="badge badge-sm">{series.numbers.length}</span>
+                </button>
+              ))}
+            </nav>
+          )}
 
           {visibleSpecials.length === 0 ? (
             <div role="status" className="alert alert-info">
@@ -574,17 +629,35 @@ function CollectionView({
               </span>
             </div>
           ) : (
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="flex flex-col gap-4">
               {visibleSpecials.map((series) => (
-                <section key={series.name} className="card bg-base-100 shadow-sm">
+                <section
+                  key={series.name}
+                  id={`serie-${series.name}`}
+                  className="card scroll-mt-4 bg-base-100 shadow-sm"
+                >
                   <div className="card-body gap-3 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <h3 className="card-title text-base">{series.name}</h3>
-                      <span className="badge badge-ghost">
-                        <VolumeCount count={series.numbers.length} />
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="badge badge-ghost">
+                          <VolumeCount count={series.numbers.length} />
+                        </span>
+                        {canWrite && (
+                          <button
+                            type="button"
+                            className="btn btn-xs btn-outline"
+                            onClick={() => {
+                              setFeedback(null);
+                              setSeriesDialog({ series: series.name });
+                            }}
+                          >
+                            <Trans>Band hinzufügen</Trans>
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+                    <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
                       {series.numbers.map((number) => (
                         <div
                           key={number}
@@ -605,6 +678,31 @@ function CollectionView({
                           </span>
                         </div>
                       ))}
+                      {canWrite && (
+                        <button
+                          type="button"
+                          className="flex aspect-[3/4] w-full flex-col items-center justify-center gap-1 rounded-box border-2 border-dashed border-base-300 text-base opacity-70 transition hover:border-primary hover:opacity-100"
+                          aria-label={t`Band zu ${series.name} hinzufügen`}
+                          onClick={() => {
+                            setFeedback(null);
+                            setSeriesDialog({ series: series.name });
+                          }}
+                        >
+                          <svg
+                            aria-hidden="true"
+                            viewBox="0 0 24 24"
+                            className="size-6"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <path d="M12 5v14M5 12h14" />
+                          </svg>
+                          <span className="text-xs">
+                            <Trans>Band</Trans>
+                          </span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </section>
@@ -659,6 +757,16 @@ function CollectionView({
         initialNumbers={addNumbers}
         onClose={() => setAddOpen(false)}
         onAdd={handleAdd}
+      />
+
+      <AddSeriesDialog
+        open={seriesDialog !== null}
+        catalog={catalog}
+        seriesNames={collection.specials.map((series) => series.name)}
+        initialSeries={seriesDialog?.series}
+        initialNumbers={seriesDialog?.numbers}
+        onClose={() => setSeriesDialog(null)}
+        onAdd={handleAddSeries}
       />
     </div>
   );
@@ -736,6 +844,30 @@ export default function App({
     );
   }
 
+  async function handleAddSeries(
+    series: string,
+    numbers: readonly number[],
+  ): Promise<SeriesResult> {
+    if (loadState.status !== "ready") {
+      throw new Error("Daten sind noch nicht geladen.");
+    }
+
+    const { repository } = loadState;
+
+    if (!isWritableRepository(repository)) {
+      throw new Error("Schreiben ist ohne API nicht möglich.");
+    }
+
+    const result = await repository.addSeries(series, numbers);
+    const collection = await repository.load();
+
+    setLoadState((current) =>
+      current.status === "ready" ? { ...current, collection } : current,
+    );
+
+    return result;
+  }
+
   async function handleLocaleChange(nextLocale: Locale) {
     if (nextLocale === locale) {
       return;
@@ -793,6 +925,7 @@ export default function App({
             onQueryChange={setQuery}
             onTabChange={setActiveTab}
             onAddVolumes={handleAddVolumes}
+            onAddSeries={handleAddSeries}
           />
         )}
       </main>

@@ -107,3 +107,60 @@ function validate_row_reference(array $body): array
 
     return ['number' => $number, 'occurrence' => $occurrence];
 }
+
+function validate_series_name(mixed $name): string
+{
+    if (!is_string($name)) {
+        throw new ValidationError(422, 'name muss Text sein.');
+    }
+
+    $normalized = trim(preg_replace('/\s+/u', ' ', $name) ?? '');
+
+    if ($normalized === '') {
+        throw new ValidationError(422, 'name darf nicht leer sein.');
+    }
+
+    if (mb_strlen($normalized) > 60) {
+        throw new ValidationError(422, 'name ist länger als 60 Zeichen.');
+    }
+
+    if (preg_match('/[\x00-\x1F\x7F]/u', $normalized) === 1) {
+        throw new ValidationError(422, 'name enthält Steuerzeichen.');
+    }
+
+    return $normalized;
+}
+
+/** @return list<int> */
+function validate_series_numbers(mixed $numbers): array
+{
+    if (!is_array($numbers) || !array_is_list($numbers)) {
+        throw new ValidationError(422, 'numbers muss eine Liste sein.');
+    }
+
+    if (count($numbers) < 1 || count($numbers) > MAX_ADD_ITEMS) {
+        throw new ValidationError(
+            422,
+            'Es können 1 bis ' . MAX_ADD_ITEMS . ' Bände pro Vorgang angelegt werden.'
+        );
+    }
+
+    $validated = [];
+
+    foreach ($numbers as $index => $number) {
+        if (is_string($number) && preg_match('/^\d{1,5}$/', $number) === 1) {
+            $number = (int) $number;
+        }
+
+        if (!is_int($number) || $number < 1 || $number > 99999) {
+            throw new ValidationError(
+                422,
+                "numbers[{$index}] muss eine ganze Zahl zwischen 1 und 99999 sein."
+            );
+        }
+
+        $validated[] = $number;
+    }
+
+    return $validated;
+}

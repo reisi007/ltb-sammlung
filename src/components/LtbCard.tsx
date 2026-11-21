@@ -6,9 +6,10 @@ interface LtbCardProps {
   row: CollectionRow;
   entry: CatalogEntry | null;
   copies?: number;
+  onAddCopy?: (number: number) => void;
 }
 
-export function LtbCard({ row, entry, copies = 1 }: LtbCardProps) {
+export function LtbCard({ row, entry, copies = 1, onAddCopy }: LtbCardProps) {
   return (
     <article className="card bg-base-100 shadow-sm">
       <figure className="aspect-[3/4] bg-base-200">
@@ -35,6 +36,27 @@ export function LtbCard({ row, entry, copies = 1 }: LtbCardProps) {
               <Trans>Enthalten in</Trans>
             </span>
             <span className="badge badge-outline">{row.containedIn}</span>
+          </div>
+        )}
+        {onAddCopy !== undefined && (
+          <div className="card-actions mt-1 justify-end">
+            <button
+              type="button"
+              className="btn btn-xs btn-outline"
+              onClick={() => onAddCopy(row.number)}
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="size-3"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+              >
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              <Trans>Exemplar</Trans>
+            </button>
           </div>
         )}
       </div>

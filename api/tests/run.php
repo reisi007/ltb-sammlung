@@ -137,6 +137,32 @@ expect_validation_error('lehnt negative Occurrence ab', 422, static fn () => val
     'occurrence' => -1,
 ]));
 
+echo "Sonderserien\n";
+$created = $store->createSeries(validate_series_name("  Micky Maus   Legacy Collection "));
+check('legt eine neue Reihe an und normalisiert den Namen', $created === 'Micky Maus Legacy Collection');
+check('findet die Reihe ohne Groß-/Kleinschreibung', $store->findSeries('micky maus legacy collection') === $created);
+check('legt dieselbe Reihe nicht doppelt an', $store->createSeries('MICKY MAUS LEGACY COLLECTION') === $created);
+$added = $store->addSeriesNumbers($created, [1, 2, 3]);
+check('fügt drei Bände hinzu', $added === ['added' => 3, 'skipped' => 0]);
+$again = $store->addSeriesNumbers($created, [3]);
+check('ignoriert bereits vorhandene Bände', $again === ['added' => 0, 'skipped' => 1]);
+$collection = $store->collection();
+$legacy = null;
+foreach ($collection['specials'] as $series) {
+    if ($series['name'] === $created) {
+        $legacy = $series;
+    }
+}
+check('neue Reihe erscheint in der Sammlung', $legacy !== null && $legacy['numbers'] === [1, 2, 3]);
+check('unbekannte Reihe liefert null', $store->findSeries('Gibt es nicht') === null);
+check('entfernt einen Band', $store->removeSeriesNumber($created, 2) === true);
+check('entfernt keinen unbekannten Band', $store->removeSeriesNumber($created, 99) === false);
+
+expect_validation_error('lehnt leeren Reihennamen ab', 422, static fn () => validate_series_name('   '));
+expect_validation_error('lehnt zu langen Reihennamen ab', 422, static fn () => validate_series_name(str_repeat('x', 61)));
+expect_validation_error('lehnt vier Reihen-Bände ab', 422, static fn () => validate_series_numbers([1, 2, 3, 4]));
+expect_validation_error('lehnt Text als Reihen-Band ab', 422, static fn () => validate_series_numbers(['abc']));
+
 echo "Persistenz\n";
 $second = new Store($databasePath, $seedPath);
 check('zweiter Start seedet nicht erneut', count($second->collection()['ltb']) === 4);
