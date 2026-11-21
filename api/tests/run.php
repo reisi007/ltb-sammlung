@@ -563,6 +563,48 @@ $sameOrigin = $admin + ['HTTP_ORIGIN' => 'https://ltb.test'];
 $response = $api->dispatch('POST', '/api/ltb', $sameOrigin, $created, strlen($created));
 check('eigener Origin ist erlaubt', $response['status'] === 201);
 
+echo "Dummy-Hash und Origin-Schema\n";
+$probe = password_hash('probe', PASSWORD_DEFAULT);
+$dummy = Api::dummyPasswordHash();
+check(
+    'Dummy-Hash hat dieselben Kosten wie echte Hashes',
+    password_get_info($dummy)['options']['cost']
+        === password_get_info($probe)['options']['cost']
+);
+check(
+    'Dummy-Hash nutzt denselben Algorithmus wie echte Hashes',
+    password_get_info($dummy)['algoName'] === password_get_info($probe)['algoName']
+);
+check('Dummy-Hash verifiziert kein beliebiges Passwort', password_verify('beliebig', $dummy) === false);
+check('wiederholte Aufrufe liefern denselben Dummy-Hash', Api::dummyPasswordHash() === $dummy);
+
+$httpOrigin = $admin + ['HTTP_ORIGIN' => 'http://ltb.test'];
+$response = $api->dispatch('POST', '/api/ltb', $httpOrigin, $created, strlen($created));
+check('http-Origin ist ohne Dev-Schalter 403', $response['status'] === 403);
+
+$noScheme = $admin + ['HTTP_ORIGIN' => '//ltb.test'];
+$response = $api->dispatch('POST', '/api/ltb', $noScheme, $created, strlen($created));
+check('Origin ohne Schema ist 403', $response['status'] === 403);
+
+$caseOrigin = array_merge($admin, [
+    'HTTP_ORIGIN' => 'https://LTB.TEST',
+    'HTTP_HOST' => 'ltb.test:443',
+]);
+$response = $api->dispatch('POST', '/api/ltb', $caseOrigin, $created, strlen($created));
+check('Origin ist case-insensitiv und ein Port am Host ist erlaubt', $response['status'] === 201);
+
+$insecureBefore = getenv('LTB_INSECURE_COOKIES');
+putenv('LTB_INSECURE_COOKIES=1');
+$response = $api->dispatch('POST', '/api/ltb', $httpOrigin, $created, strlen($created));
+check('http-Origin ist mit LTB_INSECURE_COOKIES erlaubt', $response['status'] === 201);
+if ($insecureBefore === false) {
+    putenv('LTB_INSECURE_COOKIES');
+} else {
+    putenv('LTB_INSECURE_COOKIES=' . $insecureBefore);
+}
+$response = $api->dispatch('POST', '/api/ltb', $httpOrigin, $created, strlen($created));
+check('http-Origin ist nach dem Zurücksetzen wieder 403', $response['status'] === 403);
+
 $response = $api->dispatch(
     'DELETE',
     '/api/ltb',
@@ -670,6 +712,27 @@ $response = $api->dispatch(
     strlen($loginBody)
 );
 check('zu viele Fehlversuche sind 429', $response['status'] === 429);
+
+echo "Logout-Origin\n";
+// Eigener, frischer Token: der finale Logout-Test weiter unten benutzt $admin
+// und muss von diesen Checks unberuehrt bleiben.
+$logoutToken = bin2hex(random_bytes(32));
+$store->createSession(hash('sha256', $logoutToken), 'admin', 3600);
+$logoutSession = [
+    'HTTP_HOST' => 'ltb.test',
+    'REMOTE_ADDR' => '10.0.0.1',
+    'HTTP_COOKIE' => 'auth=' . $logoutToken,
+];
+$foreignLogout = $logoutSession + ['HTTP_ORIGIN' => 'https://evil.test'];
+$response = $api->dispatch('POST', '/api/logout', $foreignLogout, '', 0);
+check('Logout mit fremdem Origin ist 403', $response['status'] === 403);
+$response = $api->dispatch('GET', '/api/collection', $logoutSession, '', 0);
+check('fremder Logout laesst die Session gueltig', $response['status'] === 200);
+$sameOriginLogout = $logoutSession + ['HTTP_ORIGIN' => 'https://ltb.test'];
+$response = $api->dispatch('POST', '/api/logout', $sameOriginLogout, '', 0);
+check('Logout mit eigenem Origin ist 200', $response['status'] === 200);
+$response = $api->dispatch('GET', '/api/collection', $logoutSession, '', 0);
+check('eigener Logout beendet die Session', $response['status'] === 401);
 
 $response = $api->dispatch(
     'POST',

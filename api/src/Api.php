@@ -35,6 +35,9 @@ final class Api
 
     private ?Catalog $catalog = null;
 
+    /** Einmalig pro PHP-Prozess erzeugter Dummy-Hash, siehe dummyPasswordHash(). */
+    private static ?string $dummyPasswordHash = null;
+
     /**
      * `$catalogPath` ist optional: ohne Katalogdatei antwortet `/api/lookup`
      * nur anhand der gelernten Zuordnungen.
@@ -286,6 +289,30 @@ final class Api
     }
 
     /**
+     * Einmalig pro Prozess erzeugter Dummy-Hash mit demselben Algorithmus und
+     * denselben Kosten wie echte Hashes (`PASSWORD_DEFAULT`). So verraet die
+     * Antwortzeit nicht, ob ein Benutzer existiert — unabhaengig von der
+     * PHP-Version und den Default-Kosten.
+     */
+    public static function dummyPasswordHash(): string
+    {
+        self::$dummyPasswordHash ??= self::createDummyPasswordHash();
+
+        return self::$dummyPasswordHash;
+    }
+
+    private static function createDummyPasswordHash(): string
+    {
+        $hash = password_hash(random_bytes(32), PASSWORD_DEFAULT);
+
+        if ($hash === false) {
+            throw new RuntimeException('Dummy-Passwort-Hash konnte nicht erzeugt werden.');
+        }
+
+        return $hash;
+    }
+
+    /**
      * @param array<string, mixed> $server
      * @return array{status: int, payload: array<string, mixed>, headers: array<string, string>}
      */
@@ -307,8 +334,7 @@ final class Api
         $user = $username === '' ? null : $this->store->findUser($username);
         // Auch bei unbekanntem Benutzer einen Hash pruefen: sonst verraet die
         // Antwortzeit, ob ein Konto existiert.
-        $hash = $user['password_hash']
-            ?? '$2y$12$0000000000000000000000000000000000000000000000000000';
+        $hash = $user['password_hash'] ?? self::dummyPasswordHash();
 
         if (!password_verify($password, $hash) || $user === null) {
             $this->store->recordLoginFailure($address);
@@ -334,6 +360,7 @@ final class Api
      */
     private function logout(array $server): array
     {
+        self::assertSameOrigin($server);
         $token = self::sessionToken($server);
 
         if ($token !== null) {
@@ -456,9 +483,12 @@ final class Api
     }
 
     /**
-     * Einfacher CSRF-Schutz: Wenn der Browser einen Origin sendet, muss er zum
-     * Host passen. Zusammen mit SameSite=Lax am Auth-Cookie reicht das für eine
-     * JSON-API ohne eigene Tokens.
+     * Einfacher CSRF-Schutz: Wenn der Browser einen Origin sendet, müssen
+     * Schema und Host zum eigenen Host passen. Zusammen mit SameSite=Lax am
+     * Auth-Cookie reicht das für eine JSON-API ohne eigene Tokens.
+     *
+     * Der Dev-Schalter `LTB_INSECURE_COOKIES=1` erlaubt zusaetzlich `http`,
+     * damit die lokale Entwicklung nicht zwingend HTTPS braucht.
      *
      * @param array<string, mixed> $server
      */
@@ -470,10 +500,23 @@ final class Api
             return;
         }
 
+        $originScheme = parse_url($origin, PHP_URL_SCHEME);
         $originHost = parse_url($origin, PHP_URL_HOST);
-        $host = (string) ($server['HTTP_HOST'] ?? '');
+        // HTTP_HOST kann einen Port enthalten; parse_url() entfernt ihn.
+        $hostName = parse_url('http://' . (string) ($server['HTTP_HOST'] ?? ''), PHP_URL_HOST);
+        $schemes = ['https'];
 
-        if (!is_string($originHost) || $originHost !== $host) {
+        if (getenv('LTB_INSECURE_COOKIES') === '1') {
+            $schemes[] = 'http';
+        }
+
+        if (
+            !is_string($originScheme)
+            || !is_string($originHost)
+            || !in_array(strtolower($originScheme), $schemes, true)
+            || !is_string($hostName)
+            || strtolower($originHost) !== strtolower($hostName)
+        ) {
             throw new ValidationError(403, 'Origin passt nicht zum Host.');
         }
     }

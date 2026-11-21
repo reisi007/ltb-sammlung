@@ -15,9 +15,12 @@ Backup-Prüfungen) wurden im Review umgesetzt.
 
 - Passwörter: `password_hash(PASSWORD_DEFAULT)`, Prüfung mit
   `password_verify()`. Auch bei unbekanntem Benutzernamen wird ein
-  Dummy-Hash geprüft. Der Dummy nutzt derzeit Kosten 12, echte Hashes 10 —
-  die Antwortzeit unterscheidet sich messbar (Faktor ~3,9); die Härtung ist
-  als #26 erfasst.
+  Dummy-Hash geprüft. Er wird zur Laufzeit mit `PASSWORD_DEFAULT` erzeugt
+  (einmalig pro PHP-Prozess). Auf dem gepinnten PHP-8.3-Stack sind Algorithmus
+  und Kosten damit identisch zu den gespeicherten Hashes; es gibt keinen
+  messbaren Unterschied. Ein künftiges PHP-Upgrade, das `PASSWORD_DEFAULT`
+  aendert, erfordert ein Neuschreiben der bestehenden Hashes, damit das
+  weiterhin gilt.
 - Session-Token: 32 zufällige Bytes (`random_bytes`), in der Datenbank liegt
   nur der SHA-256-Hash. Login erzeugt immer ein neues Token.
 - Cookie: `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`, `Max-Age=43200`
@@ -52,8 +55,10 @@ Backup-Prüfungen) wurden im Review umgesetzt.
   Antwort; Details nur in `error_log`. Auch die Store-Initialisierung liegt im
   `try` von `api/index.php`; `display_errors=0` ist zusätzlich in PHP und im
   FPM-Kommando gesetzt.
-- CSRF: `SameSite=Lax` plus Origin-Prüfung gegen den eigenen Host bei allen
-  schreibenden Requests.
+- CSRF: `SameSite=Lax` plus Origin-Prüfung inklusive Schema (`https`) gegen
+  den eigenen Host bei allen schreibenden Requests, auch `POST /api/logout`.
+  Für die lokale Entwicklung über `http` akzeptiert der Dev-Schalter
+  `LTB_INSECURE_COOKIES=1` zusätzlich `http` als Schema.
 - `X-Content-Type-Options: nosniff`, `Cache-Control: no-store`,
   `X-Frame-Options: DENY`, `Content-Security-Policy: frame-ancestors 'none'`,
   HSTS über das gemeinsame Caddy-Snippet.
@@ -181,9 +186,10 @@ Alarmierung (strato-vps#4).
 
 Härtungen aus diesem Durchlauf, als Issues erfasst:
 
-- #26: Dummy-Hash-Kosten, Origin-Prüfung bei `POST /api/logout`, Origin inkl.
-  Schema vergleichen.
-- #27: Container als root ohne `cap_drop`/`no-new-privileges`/read-only
+- #26 (behoben): Der Dummy-Hash wird zur Laufzeit mit `PASSWORD_DEFAULT`
+  erzeugt, `POST /api/logout` prüft den Origin und der Origin-Vergleich
+  berücksichtigt das Schema.
+- #27 (weiter offen): Container als root ohne `cap_drop`/`no-new-privileges`/read-only
   Rootfs, SQLite world-readable (0644), keine echte CSP, kein logrotate für
   `/var/log/ltb-vacuum.log`.
 - Bewusst akzeptiert: das Google Sheet ist öffentlich per Link; der Login
