@@ -15,7 +15,9 @@ Backup-Prüfungen) wurden im Review umgesetzt.
 
 - Passwörter: `password_hash(PASSWORD_DEFAULT)`, Prüfung mit
   `password_verify()`. Auch bei unbekanntem Benutzernamen wird ein
-  Dummy-Hash geprüft, damit die Antwortzeit keine Konten verrät.
+  Dummy-Hash geprüft. Der Dummy nutzt derzeit Kosten 12, echte Hashes 10 —
+  die Antwortzeit unterscheidet sich messbar (Faktor ~3,9); die Härtung ist
+  als #26 erfasst.
 - Session-Token: 32 zufällige Bytes (`random_bytes`), in der Datenbank liegt
   nur der SHA-256-Hash. Login erzeugt immer ein neues Token.
 - Cookie: `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`, `Max-Age=43200`
@@ -42,8 +44,8 @@ Backup-Prüfungen) wurden im Review umgesetzt.
 
 ## HTTP-Schicht
 
-- Body-Limit 8 KB: `Content-Length` **und** tatsächliche Body-Länge werden
-  geprüft. Damit ist auch ein chunked-Body ohne `Content-Length` begrenzt
+- Body-Limit 64 KiB: `Content-Length` **und** tatsächliche Body-Länge werden
+  geprüft (200 Bände mit Notizen passen; darüber 413). Damit ist auch ein chunked-Body ohne `Content-Length` begrenzt
   (Härtung im Review, Test ergänzt).
 - JSON-Fehler → 400, zu großer Body → 413, unbekannte Route → 404,
   Validierungsfehler → 422, fehlende Session → 401. Keine Stacktraces in der
@@ -163,9 +165,30 @@ PHP-FPM sprechen kann. Damit das keine Daten preisgibt:
   Benutzer leer. Sessions enden bei Passwortwechsel/Löschen.
 - Cross-User-Schreibversuche (`PATCH`/`DELETE` auf eine fremde Zeile) → 404,
   die fremde Zeile bleibt unverändert.
+- `/api/lookup?isbn=…` liegt hinter der Session (ohne Cookie 401), validiert
+  die ISBN und antwortet 400/404 ohne Interna.
 - Backup-Lauf am 2026-11-21: `VACUUM ok`, `integrity_check` ok, Upload nach
   pCloud ok; Restore-Probe der Tagesdatei ergab 120 Zeilen, 10 Reihen,
   1 Benutzer.
+
+## Finaler Durchlauf 2026-11-21 (nach Deploy)
+
+Keine kritischen oder hohen Befunde im Code. Der einzige hohe Befund lag im
+zentralen Backup: Der 03:00-Job brach seit Tagen vor Task 9 ab, weil das
+decommissionierte `agent-tasks`-Projekt als Pflichtquelle galt. Behoben
+(strato-vps `e36c7db`), `2>&0` in der Crontab korrigiert; offen bleibt die
+Alarmierung (strato-vps#4).
+
+Härtungen aus diesem Durchlauf, als Issues erfasst:
+
+- #26: Dummy-Hash-Kosten, Origin-Prüfung bei `POST /api/logout`, Origin inkl.
+  Schema vergleichen.
+- #27: Container als root ohne `cap_drop`/`no-new-privileges`/read-only
+  Rootfs, SQLite world-readable (0644), keine echte CSP, kein logrotate für
+  `/var/log/ltb-vacuum.log`.
+- Bewusst akzeptiert: das Google Sheet ist öffentlich per Link; der Login
+  schützt die API-Kopie, nicht die Sheet-Quelle. `meta.sheetId`/`sheetUrl`
+  bleiben global.
 
 ## Verbleibende Testlücken
 
