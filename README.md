@@ -10,9 +10,8 @@ oder Titel.
 Live: <https://ltb.all-the.rest/> (VPS, Login über dasselbe Konto wie
 `code.all-the.rest` — eigene Login-Seite, Cookie statt Browser-Basic-Dialog).
 
-GitHub Pages wird über `.github/workflows/deploy.yml` ausgeliefert, sobald im
-Repo unter **Pages** die Quelle **GitHub Actions** eingestellt ist. Ohne diese
-Einstellung ist `https://reisi007.github.io/ltb-sammlung/` nicht erreichbar.
+GitHub Pages ist **deaktiviert** und kein Auslieferungsweg für die Sammlung.
+Die CI (`.github/workflows/ci.yml`) prüft nur Build und Gates.
 
 ## Entscheidungen
 
@@ -27,8 +26,16 @@ Voraussetzung: Node.js ≥ 22.18 und npm.
 
 ```bash
 npm install
+npm run sync:data      # Sammlung aus dem Google Sheet (nicht im Repo)
+npm run sync:catalog   # Cover und Titel (nicht im Repo)
 npm run dev
 ```
+
+Die echten Datendateien `src/data/collection.json` und
+`src/data/catalog.json` sind bewusst **nicht eingecheckt**. Fehlen sie, legt
+der Build leere Platzhalter aus den `*.example.json` an; für echte Daten
+müssen die Sync-Scripts laufen. `npm run data:check` prüft das vor einem
+Deploy.
 
 Der Dev-Server läuft wegen des GitHub-Pages-Basispfads unter
 <http://localhost:5173/ltb-sammlung/>.
@@ -47,6 +54,8 @@ Der Dev-Server läuft wegen des GitHub-Pages-Basispfads unter
 | `npm run sync:catalog` | Cover-URLs und Titel von Duckipedia nach `src/data/catalog.json` |
 | `npm run i18n:extract` | Nachrichten aus `src/` in die `.po`-Kataloge extrahieren |
 | `npm run i18n:compile` | `.po`-Kataloge kompilieren (der Vite-Plugin kompiliert sonst beim Build) |
+| `npm run data:check` | prüft, dass echte Daten statt der Platzhalter vorliegen |
+| `npm run icons` | erzeugt die PWA-PNGs aus `public/icon*.svg` |
 
 ### Daten-Sync konfigurieren
 
@@ -66,7 +75,9 @@ lassen die vorhandene JSON-Datei unangetastet.
 
 ## Datenmodell
 
-`src/data/collection.json` ist ein Snapshot, keine normalisierte Datenbank:
+`src/data/collection.json` ist ein Snapshot, keine normalisierte Datenbank.
+Die Datei wird lokal bzw. beim Deployment erzeugt und ist nicht eingecheckt
+(`docs/decisions.md`):
 
 ```json
 {
@@ -224,13 +235,13 @@ ratchet check --no-ratchet
 
 ## Deployment
 
-`.github/workflows/deploy.yml` baut bei jedem Push auf `main` und deployt nach
-GitHub Pages. Einmalig in den Repository-Einstellungen unter **Pages** als
-Quelle **GitHub Actions** auswählen.
+`.github/workflows/ci.yml` läuft bei Push und Pull Request: `npm ci`,
+`npm run verify`, `ratchet check --no-ratchet`. Es gibt **keinen**
+Pages-Deploy; Pages bleibt deaktiviert.
 
 Der Basispfad ist in `vite.config.ts` auf `/ltb-sammlung/` gesetzt und kann per
-`BASE_PATH` überschrieben werden. Für eine eigene Domain oder ein anderes
-Repository muss `BASE_PATH` entsprechend gesetzt werden.
+`BASE_PATH` überschrieben werden. Für die eigene Domain setzt `deploy.sh`
+`BASE_PATH=/`.
 
 ### Deployment auf ltb.all-the.rest
 

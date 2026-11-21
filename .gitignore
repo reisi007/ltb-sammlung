@@ -7,3 +7,7 @@ coverage/
 # Lingui kompiliert Kataloge beim Build selbst; die .po-Dateien sind die Quelle.
 src/locales/**/messages.js
 src/locales/**/messages.mjs
+
+# Generierte Daten — Sammlung/Katalog bleiben lokal (docs/decisions.md).
+/src/data/collection.json
+/src/data/catalog.json

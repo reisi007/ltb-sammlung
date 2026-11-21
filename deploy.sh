@@ -4,7 +4,7 @@
 # =============================================================================
 # Das Ziel ist der Host-Pfad /home/webadmin/websites/ltb.all-the.rest, der im
 # proxy-stack read-only unter /srv/websites/ltb.all-the.rest gemountet wird.
-# Auth übernimmt Caddy (basic_auth).
+# Auth übernimmt Caddy (forward_auth gegen den code-auth-Sidecar).
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -55,6 +55,9 @@ if [[ "$DRY_RUN" == true ]]; then
   echo "  5. curl -o /dev/null -w '%{http_code}' https://ltb.all-the.rest/ (erwartet 401)"
   exit 0
 fi
+
+echo "Pruefe, dass echte Daten vorhanden sind (keine Platzhalter) ..."
+node scripts/ensure-data.mjs --check
 
 echo "Baue Prototyp mit BASE_PATH=/ ..."
 BASE_PATH=/ npm run build
