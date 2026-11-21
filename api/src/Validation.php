@@ -15,7 +15,7 @@ final class ValidationError extends RuntimeException
     }
 }
 
-const MAX_ADD_ITEMS = 3;
+const MAX_ADD_ITEMS = 200;
 const MAX_NOTE_LENGTH = 200;
 
 /** @return array{number: int, containedIn: ?string} */

@@ -7,34 +7,35 @@ msgstr ""
 "X-Generator: @lingui/cli\n"
 "Language: de\n"
 
-#: src/App.tsx:180
+#: src/App.tsx:176
 msgid "„Enthalten in“ ist eine freie Notiz pro Zeile – keine Verknüpfung."
 msgstr "„Enthalten in“ ist eine freie Notiz pro Zeile – keine Verknüpfung."
 
 #. placeholder {0}: items.length
-#: src/App.tsx:336
+#: src/App.tsx:332
 msgid "{0} Band hinzugefügt."
 msgstr "{0} Band hinzugefügt."
 
 #. placeholder {0}: items.length
-#: src/App.tsx:337
+#: src/App.tsx:333
 msgid "{0} Bände hinzugefügt."
 msgstr "{0} Bände hinzugefügt."
 
 #. placeholder {0}: result.name
 #. placeholder {1}: result.added
 #. placeholder {2}: result.skipped
-#: src/App.tsx:345
+#: src/App.tsx:341
 msgid "{0}: {1} Bände gespeichert, {2} bereits vorhanden."
 msgstr "{0}: {1} Bände gespeichert, {2} bereits vorhanden."
 
 #. placeholder {0}: result.name
 #. placeholder {1}: result.added
-#: src/App.tsx:346
+#: src/App.tsx:342
 msgid "{0}: {1} Bände gespeichert."
 msgstr "{0}: {1} Bände gespeichert."
 
-#: src/components/LtbCard.tsx:26
+#: src/components/LtbCard.tsx:22
+#: src/components/LtbCard.tsx:23
 msgid "{copies} Exemplare erfasst"
 msgstr "{copies} Exemplare erfasst"
 
@@ -67,7 +68,7 @@ msgid "{count} Zeilen"
 msgstr "{count} Zeilen"
 
 #: src/components/AddSeriesDialog.tsx:265
-#: src/components/AddVolumesDialog.tsx:469
+#: src/components/AddVolumesDialog.tsx:515
 #: src/components/QrScanner.tsx:193
 msgid "Abbrechen"
 msgstr "Abbrechen"
@@ -76,25 +77,25 @@ msgstr "Abbrechen"
 msgid "Abmelden"
 msgstr "Abmelden"
 
-#: src/App.tsx:555
+#: src/App.tsx:551
 msgid "Alle hinzufügen"
 msgstr "Alle hinzufügen"
 
-#: src/App.tsx:822
+#: src/App.tsx:783
 msgid "Band"
 msgstr "Band"
 
-#: src/App.tsx:775
+#: src/App.tsx:736
 msgid "Band hinzufügen"
 msgstr "Band hinzufügen"
 
 #. placeholder {0}: series.name
-#: src/App.tsx:805
+#: src/App.tsx:766
 msgid "Band zu {0} hinzufügen"
 msgstr "Band zu {0} hinzufügen"
 
-#: src/App.tsx:424
-#: src/components/AddVolumesDialog.tsx:224
+#: src/App.tsx:420
+#: src/components/AddVolumesDialog.tsx:268
 msgid "Bände hinzufügen"
 msgstr "Bände hinzufügen"
 
@@ -107,27 +108,31 @@ msgstr "Bände hinzufügen"
 #~ msgstr "Bearbeiten kommt mit der eigenen API (Issue #2)."
 
 #. placeholder {0}: known.title
-#: src/components/AddVolumesDialog.tsx:424
+#: src/components/AddVolumesDialog.tsx:472
 msgid "Bekannt: {0}"
 msgstr "Bekannt: {0}"
 
-#: src/App.tsx:580
+#: src/components/AddVolumesDialog.tsx:271
+msgid "Beliebig viele Bände auf einmal. Mehrere Nummern mit Komma, Semikolon oder Zeilenumbruch trennen; unbekannte Nummern und doppelte Exemplare sind erlaubt."
+msgstr "Beliebig viele Bände auf einmal. Mehrere Nummern mit Komma, Semikolon oder Zeilenumbruch trennen; unbekannte Nummern und doppelte Exemplare sind erlaubt."
+
+#: src/App.tsx:576
 msgid "Bereiche"
 msgstr "Bereiche"
 
-#: src/components/AddVolumesDialog.tsx:433
+#: src/components/AddVolumesDialog.tsx:481
 msgid "Bereits {owned}× vorhanden"
 msgstr "Bereits {owned}× vorhanden"
 
 #: src/components/AddVolumesDialog.tsx:227
-msgid "Bis zu {MAX_ADD_ITEMS} Bände auf einmal. Unbekannte Nummern und doppelte Exemplare sind erlaubt."
-msgstr "Bis zu {MAX_ADD_ITEMS} Bände auf einmal. Unbekannte Nummern und doppelte Exemplare sind erlaubt."
+#~ msgid "Bis zu {MAX_ADD_ITEMS} Bände auf einmal. Unbekannte Nummern und doppelte Exemplare sind erlaubt."
+#~ msgstr "Bis zu {MAX_ADD_ITEMS} Bände auf einmal. Unbekannte Nummern und doppelte Exemplare sind erlaubt."
 
 #: src/components/AddSeriesDialog.tsx:90
 msgid "Bitte 1 bis {MAX_ADD_ITEMS} gültige Nummern eingeben."
 msgstr "Bitte 1 bis {MAX_ADD_ITEMS} gültige Nummern eingeben."
 
-#: src/components/AddVolumesDialog.tsx:142
+#: src/components/AddVolumesDialog.tsx:167
 msgid "Bitte eine gültige LTB-Nummer eingeben."
 msgstr "Bitte eine gültige LTB-Nummer eingeben."
 
@@ -135,12 +140,12 @@ msgstr "Bitte eine gültige LTB-Nummer eingeben."
 msgid "Bitte einen Namen für die Sonderserie eingeben."
 msgstr "Bitte einen Namen für die Sonderserie eingeben."
 
-#: src/components/AddVolumesDialog.tsx:46
+#: src/components/AddVolumesDialog.tsx:74
 msgid "Bitte mindestens eine Nummer eingeben."
 msgstr "Bitte mindestens eine Nummer eingeben."
 
 #. placeholder {0}: formatDateTime(catalog.meta.syncedAt, locale)
-#: src/App.tsx:175
+#: src/App.tsx:171
 msgid "Cover und Titel synchronisiert: {0}"
 msgstr "Cover und Titel synchronisiert: {0}"
 
@@ -148,19 +153,19 @@ msgstr "Cover und Titel synchronisiert: {0}"
 msgid "Cover von LTB Nr. {number}"
 msgstr "Cover von LTB Nr. {number}"
 
-#: src/App.tsx:185
+#: src/App.tsx:181
 msgid "Cover: © Disney/Egmont. Die Rechte liegen bei den jeweiligen Rechteinhabern; Cover werden nur verlinkt, nicht gehostet."
 msgstr "Cover: © Disney/Egmont. Die Rechte liegen bei den jeweiligen Rechteinhabern; Cover werden nur verlinkt, nicht gehostet."
 
-#: src/App.tsx:1081
+#: src/App.tsx:1046
 msgid "Daten konnten nicht geladen werden."
 msgstr "Daten konnten nicht geladen werden."
 
-#: src/App.tsx:1072
+#: src/App.tsx:1037
 msgid "Daten werden geladen…"
 msgstr "Daten werden geladen…"
 
-#: src/App.tsx:154
+#: src/App.tsx:150
 msgid "Datenquellen"
 msgstr "Datenquellen"
 
@@ -172,42 +177,42 @@ msgstr "Der Name ist länger als 60 Zeichen."
 msgid "Deutsch"
 msgstr "Deutsch"
 
-#: src/components/AddVolumesDialog.tsx:305
+#: src/components/AddVolumesDialog.tsx:350
 msgid "Die Zuordnung wird gespeichert und beim nächsten Scan wiederverwendet."
 msgstr "Die Zuordnung wird gespeichert und beim nächsten Scan wiederverwendet."
 
 #: src/App.tsx:641
-msgid "Diese Nummern sind mit mehr als einem Exemplar erfasst. Ein Klick filtert die Liste."
-msgstr "Diese Nummern sind mit mehr als einem Exemplar erfasst. Ein Klick filtert die Liste."
+#~ msgid "Diese Nummern sind mit mehr als einem Exemplar erfasst. Ein Klick filtert die Liste."
+#~ msgstr "Diese Nummern sind mit mehr als einem Exemplar erfasst. Ein Klick filtert die Liste."
 
-#: src/App.tsx:316
-#: src/App.tsx:378
-#: src/App.tsx:844
+#: src/App.tsx:312
+#: src/App.tsx:374
+#: src/App.tsx:805
 msgid "Donald Duck"
 msgstr "Donald Duck"
 
-#: src/App.tsx:142
+#: src/App.tsx:138
 msgid "Duckipedia Ausgabenliste"
 msgstr "Duckipedia Ausgabenliste"
 
-#: src/App.tsx:138
+#: src/App.tsx:134
 msgid "Duckipedia Covergalerie"
 msgstr "Duckipedia Covergalerie"
 
-#: src/App.tsx:847
-#: src/App.tsx:866
+#: src/App.tsx:808
+#: src/App.tsx:827
 msgid "Eigene Reihe mit eigenen Nummern."
 msgstr "Eigene Reihe mit eigenen Nummern."
 
-#: src/App.tsx:705
+#: src/App.tsx:666
 msgid "Eigene Reihen mit eigenen Nummern, getrennt von den LTB-Nummern."
 msgstr "Eigene Reihen mit eigenen Nummern, getrennt von den LTB-Nummern."
 
-#: src/components/AddVolumesDialog.tsx:52
+#: src/components/AddVolumesDialog.tsx:80
 msgid "Eine Nummer ist keine ganze Zahl."
 msgstr "Eine Nummer ist keine ganze Zahl."
 
-#: src/components/AddVolumesDialog.tsx:175
+#: src/components/AddVolumesDialog.tsx:217
 msgid "Eine Nummer konnte nicht gelesen werden."
 msgstr "Eine Nummer konnte nicht gelesen werden."
 
@@ -215,20 +220,20 @@ msgstr "Eine Nummer konnte nicht gelesen werden."
 msgid "Englisch"
 msgstr "Englisch"
 
-#: src/components/LtbCard.tsx:38
+#: src/components/LtbCard.tsx:39
 msgid "Enthalten in"
 msgstr "Enthalten in"
 
-#: src/components/AddVolumesDialog.tsx:401
+#: src/components/AddVolumesDialog.tsx:449
 msgid "Enthalten in (optional)"
 msgstr "Enthalten in (optional)"
 
 #: src/components/AddSeriesDialog.tsx:89
-#: src/components/AddVolumesDialog.tsx:49
+#: src/components/AddVolumesDialog.tsx:77
 msgid "Es sind höchstens {MAX_ADD_ITEMS} Bände pro Vorgang möglich."
 msgstr "Es sind höchstens {MAX_ADD_ITEMS} Bände pro Vorgang möglich."
 
-#: src/components/LtbCard.tsx:60
+#: src/components/LtbCard.tsx:61
 msgid "Exemplar"
 msgstr "Exemplar"
 
@@ -241,37 +246,41 @@ msgid "fehlt"
 msgstr "fehlt"
 
 #: src/App.tsx:134
-msgid "Google Sheet"
-msgstr "Google Sheet"
+#~ msgid "Google Sheet"
+#~ msgstr "Google Sheet"
 
 #. placeholder {0}: rows.length
-#: src/App.tsx:533
+#: src/App.tsx:529
 msgid "Habe ich ({0}×)"
 msgstr "Habe ich ({0}×)"
 
-#: src/App.tsx:479
+#: src/App.tsx:475
 msgid "Habe ich: Ja"
 msgstr "Habe ich: Ja"
 
-#: src/App.tsx:481
-#: src/App.tsx:535
+#: src/App.tsx:477
+#: src/App.tsx:531
 msgid "Habe ich: Nein"
 msgstr "Habe ich: Nein"
 
-#: src/App.tsx:498
-#: src/components/AddVolumesDialog.tsx:481
+#: src/App.tsx:494
+#: src/components/AddVolumesDialog.tsx:527
 msgid "Hinzufügen"
 msgstr "Hinzufügen"
 
 #: src/App.tsx:561
-msgid "Höchstens {MAX_ADD_ITEMS} Nummern auf einmal; weitere werden ignoriert."
-msgstr "Höchstens {MAX_ADD_ITEMS} Nummern auf einmal; weitere werden ignoriert."
+#~ msgid "Höchstens {MAX_ADD_ITEMS} Nummern auf einmal; weitere werden ignoriert."
+#~ msgstr "Höchstens {MAX_ADD_ITEMS} Nummern auf einmal; weitere werden ignoriert."
+
+#: src/App.tsx:557
+msgid "Höchstens {MAX_SEARCH_NUMBERS} Nummern auf einmal; weitere werden ignoriert."
+msgstr "Höchstens {MAX_SEARCH_NUMBERS} Nummern auf einmal; weitere werden ignoriert."
 
 #: src/components/AddVolumesDialog.tsx:190
 #~ msgid "Im Scan war keine LTB-Nummer erkennbar."
 #~ msgstr "Im Scan war keine LTB-Nummer erkennbar."
 
-#: src/components/AddVolumesDialog.tsx:251
+#: src/components/AddVolumesDialog.tsx:296
 msgid "Im Scan war keine LTB-Nummer oder ISBN erkennbar."
 msgstr "Im Scan war keine LTB-Nummer oder ISBN erkennbar."
 
@@ -279,11 +288,11 @@ msgstr "Im Scan war keine LTB-Nummer oder ISBN erkennbar."
 msgid "Im Scan war keine Nummer erkennbar."
 msgstr "Im Scan war keine Nummer erkennbar."
 
-#: src/components/AddVolumesDialog.tsx:271
+#: src/components/AddVolumesDialog.tsx:316
 msgid "ISBN {pendingIsbn} ist noch nicht zugeordnet. Welche LTB-Nummer ist das?"
 msgstr "ISBN {pendingIsbn} ist noch nicht zugeordnet. Welche LTB-Nummer ist das?"
 
-#: src/App.tsx:614
+#: src/App.tsx:610
 msgid "Jede Zeile ist ein eigener Eintrag. „Enthalten in“ ist eine freie Notiz, keine Verknüpfung."
 msgstr "Jede Zeile ist ein eigener Eintrag. „Enthalten in“ ist eine freie Notiz, keine Verknüpfung."
 
@@ -299,11 +308,15 @@ msgstr "Kamera nicht verfügbar."
 msgid "Kein Cover verfügbar"
 msgstr "Kein Cover verfügbar"
 
-#: src/App.tsx:191
-msgid "Kein offizielles Angebot von Disney, Egmont oder Google."
-msgstr "Kein offizielles Angebot von Disney, Egmont oder Google."
+#: src/App.tsx:187
+msgid "Kein offizielles Angebot von Disney oder Egmont."
+msgstr "Kein offizielles Angebot von Disney oder Egmont."
 
-#: src/components/LtbCard.tsx:33
+#: src/App.tsx:191
+#~ msgid "Kein offizielles Angebot von Disney, Egmont oder Google."
+#~ msgstr "Kein offizielles Angebot von Disney, Egmont oder Google."
+
+#: src/components/LtbCard.tsx:34
 msgid "Kein Titel erfasst"
 msgstr "Kein Titel erfasst"
 
@@ -311,29 +324,29 @@ msgstr "Kein Titel erfasst"
 msgid "Keine Einträge für diese Suche."
 msgstr "Keine Einträge für diese Suche."
 
-#: src/App.tsx:670
+#: src/App.tsx:631
 msgid "Keine LTB-Ausgaben erfasst."
 msgstr "Keine LTB-Ausgaben erfasst."
 
-#: src/App.tsx:672
+#: src/App.tsx:633
 msgid "Keine LTB-Ausgaben für „{query}“ gefunden."
 msgstr "Keine LTB-Ausgaben für „{query}“ gefunden."
 
-#: src/App.tsx:748
+#: src/App.tsx:709
 msgid "Keine Sonderserien für diese Suche gefunden."
 msgstr "Keine Sonderserien für diese Suche gefunden."
 
-#: src/App.tsx:314
-#: src/App.tsx:356
+#: src/App.tsx:310
+#: src/App.tsx:352
 msgid "LTB"
 msgstr "LTB"
 
 #. placeholder {0}: row.number
-#: src/components/LtbCard.tsx:22
+#: src/components/LtbCard.tsx:31
 msgid "LTB Nr. {0}"
 msgstr "LTB Nr. {0}"
 
-#: src/App.tsx:466
+#: src/App.tsx:462
 msgid "LTB Nr. {exactNumber}"
 msgstr "LTB Nr. {exactNumber}"
 
@@ -341,15 +354,15 @@ msgstr "LTB Nr. {exactNumber}"
 msgid "LTB-Sammlung"
 msgstr "LTB-Sammlung"
 
-#: src/App.tsx:486
+#: src/App.tsx:482
 msgid "mehrfach erfasst"
 msgstr "mehrfach erfasst"
 
 #: src/App.tsx:635
-msgid "Mehrfach vorhanden"
-msgstr "Mehrfach vorhanden"
+#~ msgid "Mehrfach vorhanden"
+#~ msgstr "Mehrfach vorhanden"
 
-#: src/App.tsx:611
+#: src/App.tsx:607
 msgid "Meine LTB-Ausgaben"
 msgstr "Meine LTB-Ausgaben"
 
@@ -365,7 +378,7 @@ msgstr "Neue Reihe anlegen …"
 msgid "Neuer Reihenname"
 msgstr "Neuer Reihenname"
 
-#: src/components/AddVolumesDialog.tsx:428
+#: src/components/AddVolumesDialog.tsx:476
 msgid "Nicht im Katalog"
 msgstr "Nicht im Katalog"
 
@@ -382,7 +395,7 @@ msgstr "Nr. {number}"
 msgid "Nr. {number} – {title}"
 msgstr "Nr. {number} – {title}"
 
-#: src/components/AddVolumesDialog.tsx:334
+#: src/components/AddVolumesDialog.tsx:379
 msgid "Nummer"
 msgstr "Nummer"
 
@@ -394,7 +407,7 @@ msgstr "Nummer {number} anzeigen"
 #~ msgid "Nummer oder Titel suchen"
 #~ msgstr "Nummer oder Titel suchen"
 
-#: src/App.tsx:510
+#: src/App.tsx:506
 msgid "Nummern"
 msgstr "Nummern"
 
@@ -402,11 +415,11 @@ msgstr "Nummern"
 msgid "Nummern (bis zu {MAX_ADD_ITEMS}, durch Komma getrennt)"
 msgstr "Nummern (bis zu {MAX_ADD_ITEMS}, durch Komma getrennt)"
 
-#: src/App.tsx:449
+#: src/App.tsx:445
 msgid "Nummern (bis zu 3) oder Titel suchen"
 msgstr "Nummern (bis zu 3) oder Titel suchen"
 
-#: src/components/AddVolumesDialog.tsx:55
+#: src/components/AddVolumesDialog.tsx:83
 msgid "Nummern müssen zwischen 1 und {MAX_VOLUME_NUMBER} liegen."
 msgstr "Nummern müssen zwischen 1 und {MAX_VOLUME_NUMBER} liegen."
 
@@ -414,17 +427,17 @@ msgstr "Nummern müssen zwischen 1 und {MAX_VOLUME_NUMBER} liegen."
 msgid "Nummern-Übersicht"
 msgstr "Nummern-Übersicht"
 
-#: src/App.tsx:437
+#: src/App.tsx:433
 msgid "Nur Lesen"
 msgstr "Nur Lesen"
 
-#: src/App.tsx:146
+#: src/App.tsx:142
 msgid "Offizielle LTB-Seite"
 msgstr "Offizielle LTB-Seite"
 
-#: src/App.tsx:317
-#: src/App.tsx:389
-#: src/App.tsx:863
+#: src/App.tsx:313
+#: src/App.tsx:385
+#: src/App.tsx:824
 msgid "Panzerknacker & Co"
 msgstr "Panzerknacker & Co"
 
@@ -433,7 +446,7 @@ msgid "QR-Code oder Barcode in den Rahmen halten."
 msgstr "QR-Code oder Barcode in den Rahmen halten."
 
 #: src/components/AddSeriesDialog.tsx:217
-#: src/components/AddVolumesDialog.tsx:358
+#: src/components/AddVolumesDialog.tsx:406
 msgid "QR-Code scannen"
 msgstr "QR-Code scannen"
 
@@ -449,17 +462,17 @@ msgstr "Reihe"
 msgid "Reihe auswählen oder neu anlegen und bis zu {MAX_ADD_ITEMS} Bände eintragen. Bereits vorhandene Bände werden übersprungen."
 msgstr "Reihe auswählen oder neu anlegen und bis zu {MAX_ADD_ITEMS} Bände eintragen. Bereits vorhandene Bände werden übersprungen."
 
-#: src/App.tsx:720
+#: src/App.tsx:681
 msgid "Reihe hinzufügen"
 msgstr "Reihe hinzufügen"
 
 #. placeholder {0}: formatDateTime(collection.meta.syncedAt, locale)
-#: src/App.tsx:170
+#: src/App.tsx:166
 msgid "Sammlung synchronisiert: {0}"
 msgstr "Sammlung synchronisiert: {0}"
 
 #: src/components/AddSeriesDialog.tsx:288
-#: src/components/AddVolumesDialog.tsx:488
+#: src/components/AddVolumesDialog.tsx:534
 msgid "Schließen"
 msgstr "Schließen"
 
@@ -467,7 +480,7 @@ msgstr "Schließen"
 #~ msgid "Schreiben direkt ins Google Sheet per OAuth ist geplant."
 #~ msgstr "Schreiben direkt ins Google Sheet per OAuth ist geplant."
 
-#: src/App.tsx:429
+#: src/App.tsx:425
 msgid "Schreiben ist ohne API nicht möglich (nur Lesezugriff)."
 msgstr "Schreiben ist ohne API nicht möglich (nur Lesezugriff)."
 
@@ -475,10 +488,10 @@ msgstr "Schreiben ist ohne API nicht möglich (nur Lesezugriff)."
 msgid "Sonderserie hinzufügen"
 msgstr "Sonderserie hinzufügen"
 
-#: src/App.tsx:315
-#: src/App.tsx:367
-#: src/App.tsx:702
-#: src/App.tsx:726
+#: src/App.tsx:311
+#: src/App.tsx:363
+#: src/App.tsx:663
+#: src/App.tsx:687
 msgid "Sonderserien"
 msgstr "Sonderserien"
 
@@ -491,20 +504,20 @@ msgstr "Speichern"
 msgid "Sprache"
 msgstr "Sprache"
 
-#: src/App.tsx:405
-#: src/App.tsx:450
+#: src/App.tsx:401
+#: src/App.tsx:446
 msgid "Suche"
 msgstr "Suche"
 
-#: src/App.tsx:352
+#: src/App.tsx:348
 msgid "Überblick"
 msgstr "Überblick"
 
-#: src/App.tsx:543
+#: src/App.tsx:539
 msgid "Ungültig: {token}"
 msgstr "Ungültig: {token}"
 
-#: src/components/AddVolumesDialog.tsx:184
+#: src/components/AddVolumesDialog.tsx:228
 msgid "Ungültige Eingabe."
 msgstr "Ungültige Eingabe."
 
@@ -517,11 +530,11 @@ msgstr "vorhanden"
 msgid "vorhanden: {0} / {maxNumber}"
 msgstr "vorhanden: {0} / {maxNumber}"
 
-#: src/components/AddVolumesDialog.tsx:448
+#: src/components/AddVolumesDialog.tsx:495
 msgid "Weiterer Band"
 msgstr "Weiterer Band"
 
-#: src/App.tsx:496
+#: src/App.tsx:492
 msgid "Weiteres Exemplar"
 msgstr "Weiteres Exemplar"
 
@@ -529,11 +542,11 @@ msgstr "Weiteres Exemplar"
 msgid "z. B. 1, 2, 3"
 msgstr "z. B. 1, 2, 3"
 
-#: src/components/AddVolumesDialog.tsx:281
+#: src/components/AddVolumesDialog.tsx:326
 msgid "z. B. 219"
 msgstr "z. B. 219"
 
-#: src/components/AddVolumesDialog.tsx:342
+#: src/components/AddVolumesDialog.tsx:387
 msgid "z. B. 219 oder LTB 219"
 msgstr "z. B. 219 oder LTB 219"
 
@@ -541,18 +554,18 @@ msgstr "z. B. 219 oder LTB 219"
 msgid "z. B. Micky Maus Legacy Collection"
 msgstr "z. B. Micky Maus Legacy Collection"
 
-#: src/components/AddVolumesDialog.tsx:408
+#: src/components/AddVolumesDialog.tsx:456
 msgid "z. B. MM 4"
 msgstr "z. B. MM 4"
 
-#: src/components/AddVolumesDialog.tsx:378
+#: src/components/AddVolumesDialog.tsx:426
 msgid "Zeile entfernen"
 msgstr "Zeile entfernen"
 
-#: src/components/AddVolumesDialog.tsx:301
+#: src/components/AddVolumesDialog.tsx:346
 msgid "Zuordnen"
 msgstr "Zuordnen"
 
-#: src/App.tsx:459
+#: src/App.tsx:455
 msgid "Zurücksetzen"
 msgstr "Zurücksetzen"

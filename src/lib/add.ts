@@ -4,7 +4,10 @@
  */
 import type { CollectionRow } from "./collection";
 
-export const MAX_ADD_ITEMS = 3;
+/** Obergrenze pro Anlege-Vorgang; bewusst hoch, damit Bulk-Eingaben nicht brechen. */
+export const MAX_ADD_ITEMS = 200;
+/** Die Suche bleibt bei drei Nummern, damit die Trefferleiste lesbar bleibt. */
+export const MAX_SEARCH_NUMBERS = 3;
 export const MAX_VOLUME_NUMBER = 99999;
 
 export type AddValidationError =
@@ -86,11 +89,11 @@ export function parseVolumeInput(text: string): number[] {
 }
 
 export interface SearchNumbers {
-  /** Gueltige Nummern, hoechstens {@link MAX_ADD_ITEMS}. */
+  /** Gueltige Nummern, hoechstens {@link MAX_SEARCH_NUMBERS}. */
   numbers: number[];
   /** Ziffernfolgen ausserhalb von 1..{@link MAX_VOLUME_NUMBER}. */
   invalid: string[];
-  /** true, wenn mehr als {@link MAX_ADD_ITEMS} Nummern eingegeben wurden. */
+  /** true, wenn mehr als {@link MAX_SEARCH_NUMBERS} Nummern eingegeben wurden. */
   tooMany: boolean;
 }
 
@@ -125,10 +128,10 @@ export function parseSearchNumbers(query: string): SearchNumbers | null {
     }
   }
 
-  const tooMany = numbers.length > MAX_ADD_ITEMS;
+  const tooMany = numbers.length > MAX_SEARCH_NUMBERS;
 
   return {
-    numbers: tooMany ? numbers.slice(0, MAX_ADD_ITEMS) : numbers,
+    numbers: tooMany ? numbers.slice(0, MAX_SEARCH_NUMBERS) : numbers,
     invalid,
     tooMany,
   };
@@ -176,6 +179,17 @@ export function getDuplicateNumbers(
   }
 
   return counts;
+}
+
+/**
+ * Teilt eine Dialogzeile an Komma, Semikolon oder Zeilenumbruch. Leerzeichen
+ * bleiben Teil eines Tokens, damit "LTB 219" zusammenbleibt.
+ */
+export function splitNumberInput(text: string): string[] {
+  return text
+    .split(/[,;\n]+/)
+    .map((part) => part.trim())
+    .filter((part) => part !== "");
 }
 
 export interface AddItem {

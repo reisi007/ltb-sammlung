@@ -28,7 +28,7 @@ export function SeriesCover({ number, entry }: SeriesCoverProps) {
       }
       loading="lazy"
       decoding="async"
-      className="h-full w-full object-cover"
+      className="h-full w-full object-contain"
       onError={() => setFailed(true)}
     />
   );

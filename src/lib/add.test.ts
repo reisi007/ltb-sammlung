@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_ADD_ITEMS,
+  MAX_SEARCH_NUMBERS,
   buildAddItems,
   extractNumberFromScan,
   getDuplicateNumbers,
   parseSearchNumbers,
   parseVolumeInput,
+  splitNumberInput,
   toAddItems,
   validateAddNumbers,
 } from "./add";
@@ -49,15 +51,18 @@ describe("parseVolumeInput", () => {
 });
 
 describe("validateAddNumbers", () => {
-  it("erlaubt ein bis drei Nummern inklusive Duplikaten", () => {
+  it("erlaubt viele Nummern inklusive Duplikaten", () => {
     expect(validateAddNumbers([219]).ok).toBe(true);
     expect(validateAddNumbers([219, 219]).ok).toBe(true);
-    expect(validateAddNumbers([1, 2, 3]).ok).toBe(true);
+    expect(validateAddNumbers([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]).ok).toBe(true);
   });
 
   it("meldet die konkreten Grenzverletzungen", () => {
     expect(validateAddNumbers([]).error).toBe("empty");
-    expect(validateAddNumbers([1, 2, 3, 4]).error).toBe("too-many");
+    expect(
+      validateAddNumbers(Array.from({ length: MAX_ADD_ITEMS + 1 }, (_, i) => i + 1))
+        .error,
+    ).toBe("too-many");
     expect(validateAddNumbers([1.5]).error).toBe("invalid-number");
     expect(validateAddNumbers([0]).error).toBe("number-out-of-range");
   });
@@ -66,6 +71,28 @@ describe("validateAddNumbers", () => {
     const numbers = Array.from({ length: MAX_ADD_ITEMS + 1 }, (_, index) => index + 1);
 
     expect(validateAddNumbers(numbers, MAX_ADD_ITEMS).error).toBe("too-many");
+  });
+});
+
+describe("splitNumberInput", () => {
+  it("trennt an Komma, Semikolon und Zeilenumbruch, aber nicht an Leerzeichen", () => {
+    expect(splitNumberInput("219, 220;221\n222")).toEqual([
+      "219",
+      "220",
+      "221",
+      "222",
+    ]);
+    expect(splitNumberInput("LTB 219")).toEqual(["LTB 219"]);
+  });
+});
+
+describe("parseSearchNumbers", () => {
+  it("begrenzt die Suche weiterhin auf drei Nummern", () => {
+    const parsed = parseSearchNumbers("1, 2, 3, 4");
+
+    expect(MAX_SEARCH_NUMBERS).toBe(3);
+    expect(parsed?.numbers).toEqual([1, 2, 3]);
+    expect(parsed?.tooMany).toBe(true);
   });
 });
 

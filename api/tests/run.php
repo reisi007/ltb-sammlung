@@ -126,13 +126,13 @@ $valid = validate_add_body(['items' => [
     ['number' => 12, 'containedIn' => '  Notiz  '],
     ['number' => '13'],
 ]]);
-check('akzeptiert ein bis drei Einträge', count($valid) === 2);
+check('akzeptiert mehrere Eintraege', count($valid) === 2);
 check('trimmt die Notiz', $valid[0]['containedIn'] === 'Notiz');
 check('leere Notiz wird null', $valid[1]['containedIn'] === null);
 check('akzeptiert eine einzelne Zahl als Objekt', validate_add_body(['number' => 7])[0]['number'] === 7);
 
-expect_validation_error('lehnt vier Einträge ab', 422, static fn () => validate_add_body([
-    'items' => [['number' => 1], ['number' => 2], ['number' => 3], ['number' => 4]],
+expect_validation_error('lehnt mehr als MAX_ADD_ITEMS ab', 422, static fn () => validate_add_body([
+    'items' => array_fill(0, MAX_ADD_ITEMS + 1, ['number' => 1]),
 ]));
 expect_validation_error('lehnt leere Liste ab', 422, static fn () => validate_add_body([
     'items' => [],
@@ -171,7 +171,7 @@ check('entfernt keinen unbekannten Band', $store->removeSeriesNumber('admin', $c
 
 expect_validation_error('lehnt leeren Reihennamen ab', 422, static fn () => validate_series_name('   '));
 expect_validation_error('lehnt zu langen Reihennamen ab', 422, static fn () => validate_series_name(str_repeat('x', 61)));
-expect_validation_error('lehnt vier Reihen-Bände ab', 422, static fn () => validate_series_numbers([1, 2, 3, 4]));
+expect_validation_error('lehnt mehr als MAX_ADD_ITEMS Reihen-Baende ab', 422, static fn () => validate_series_numbers(array_fill(0, MAX_ADD_ITEMS + 1, 1)));
 expect_validation_error('lehnt Text als Reihen-Band ab', 422, static fn () => validate_series_numbers(['abc']));
 
 check('ISBN-13 mit Bindestrichen wird normalisiert', validate_isbn('978-3-7704-0219-9') === '9783770402199');
@@ -399,16 +399,19 @@ $response = $api->dispatch('POST', '/api/ltb', $admin, $hugeWithoutLength, 0);
 check('Body ueber 8 KB ohne Content-Length ist 413', $response['status'] === 413);
 
 $beforeSeries = count($store->collection('admin')['specials']);
-$sevenNumbers = '{"name":"Regression","numbers":[1,2,3,4]}';
+$tooManyNumbers = json_encode([
+    'name' => 'Regression',
+    'numbers' => array_fill(0, MAX_ADD_ITEMS + 1, 1),
+]);
 $response = $api->dispatch(
     'POST',
     '/api/series',
     $admin,
-    $sevenNumbers,
-    strlen($sevenNumbers)
+    $tooManyNumbers,
+    strlen($tooManyNumbers)
 );
 $afterSeries = count($store->collection('admin')['specials']);
-check('vier Serien-Baende sind 422', $response['status'] === 422);
+check('zu viele Serien-Baende sind 422', $response['status'] === 422);
 check('422 legt keine leere Reihe an', $afterSeries === $beforeSeries);
 check('422 legt den Namen nicht an', $store->findSeries('admin', 'Regression') === null);
 

@@ -41,7 +41,7 @@ export function Cover({ number, title, entry }: CoverProps) {
       alt={t`Cover von LTB Nr. ${number}`}
       loading="lazy"
       decoding="async"
-      className="h-full w-full object-cover"
+      className="h-full w-full object-contain"
       onError={() => setFailedSources((current) => [...current, source])}
     />
   );

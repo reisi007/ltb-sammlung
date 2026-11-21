@@ -14,7 +14,7 @@ import { RowList } from "./components/RowList";
 import { SeriesCover } from "./components/SeriesCover";
 import { isLocale, loadCatalog as loadMessages, type Locale } from "./i18n";
 import {
-  MAX_ADD_ITEMS,
+  MAX_SEARCH_NUMBERS,
   getDuplicateNumbers,
   parseSearchNumbers,
   type AddItem,
@@ -130,10 +130,6 @@ interface FooterProps {
 function Footer({ collection, catalog, locale }: FooterProps) {
   const sources: Array<{ href: string; label: ReactNode }> = [
     {
-      href: collection.meta.sheetUrl,
-      label: <Trans>Google Sheet</Trans>,
-    },
-    {
       href: "https://de.duckipedia.org/wiki/Covergalerie_Lustiges_Taschenbuch",
       label: <Trans>Duckipedia Covergalerie</Trans>,
     },
@@ -189,7 +185,7 @@ function Footer({ collection, catalog, locale }: FooterProps) {
         </p>
         <p className="opacity-70">
           <Trans>
-            Kein offizielles Angebot von Disney, Egmont oder Google.
+            Kein offizielles Angebot von Disney oder Egmont.
           </Trans>
         </p>
         <p className="opacity-60">Version {__APP_VERSION__}</p>
@@ -559,8 +555,8 @@ function CollectionView({
               {multiQuery.tooMany && (
                 <p className="mt-1 text-xs opacity-70">
                   <Trans>
-                    Höchstens {MAX_ADD_ITEMS} Nummern auf einmal; weitere werden
-                    ignoriert.
+                    Höchstens {MAX_SEARCH_NUMBERS} Nummern auf einmal; weitere
+                    werden ignoriert.
                   </Trans>
                 </p>
               )}
@@ -627,41 +623,6 @@ function CollectionView({
             ownedNumbers={ownedNumbers}
             onSelect={selectNumber}
           />
-
-          {duplicates.size > 0 && (
-            <section className="card bg-base-100 shadow-sm">
-              <div className="card-body gap-2 p-4">
-                <h3 className="card-title text-base">
-                  <Trans>Mehrfach vorhanden</Trans>
-                  <span className="badge badge-sm">
-                    {formatCount(duplicates.size, locale)}
-                  </span>
-                </h3>
-                <p className="text-sm opacity-70">
-                  <Trans>
-                    Diese Nummern sind mit mehr als einem Exemplar erfasst.
-                    Ein Klick filtert die Liste.
-                  </Trans>
-                </p>
-                <ul className="flex flex-wrap gap-2">
-                  {[...duplicates.entries()]
-                    .sort(([a], [b]) => a - b)
-                    .map(([number, count]) => (
-                      <li key={number}>
-                        <button
-                          type="button"
-                          className="badge badge-outline badge-lg gap-1"
-                          onClick={() => selectNumber(number)}
-                        >
-                          <span>{number}</span>
-                          <span className="font-bold">×{count}</span>
-                        </button>
-                      </li>
-                    ))}
-                </ul>
-              </div>
-            </section>
-          )}
 
           {filteredLtb.length === 0 ? (
             <div role="status" className="alert alert-info">

@@ -5,6 +5,7 @@ import {
   MAX_VOLUME_NUMBER,
   buildAddItems,
   extractNumberFromScan,
+  splitNumberInput,
   validateAddNumbers,
   type AddItem,
   type AddValidationError,
@@ -32,8 +33,35 @@ interface AddVolumesDialogProps {
 
 let nextRowId = 1;
 
-function createRow(value = ""): AddRowState {
-  return { id: nextRowId++, value, note: "" };
+function createRow(value = "", note = ""): AddRowState {
+  return { id: nextRowId++, value, note };
+}
+
+/**
+ * Teilt Zeilen mit mehreren Nummern in je eine Zeile auf. Die Notiz bleibt an
+ * der ersten Nummer; die weiteren starten leer. So bleibt pro Band eine eigene
+ * Notiz möglich, auch wenn die Nummern kommagetrennt eingegeben wurden.
+ */
+function expandRows(rows: AddRowState[]): AddRowState[] {
+  const expanded: AddRowState[] = [];
+  let changed = false;
+
+  for (const row of rows) {
+    const tokens = splitNumberInput(row.value);
+
+    if (tokens.length < 2) {
+      expanded.push(row);
+      continue;
+    }
+
+    changed = true;
+
+    tokens.forEach((token, index) => {
+      expanded.push(createRow(token, index === 0 ? row.note : ""));
+    });
+  }
+
+  return changed ? expanded : rows;
 }
 
 type DialogError =
@@ -96,9 +124,7 @@ export function AddVolumesDialog({
 
       if (initialNumbers !== undefined && initialNumbers.length > 0) {
         setRows(
-          initialNumbers
-            .slice(0, MAX_ADD_ITEMS)
-            .map((number) => createRow(String(number))),
+          initialNumbers.map((number) => createRow(String(number))),
         );
       }
 
@@ -120,10 +146,9 @@ export function AddVolumesDialog({
     [rows],
   );
 
-  const items = buildAddItems(
-    parsed.map((entry) => ({ number: entry.number, note: entry.row.note })),
+  const numbers = parsed.flatMap((entry) =>
+    entry.number === null ? [] : [entry.number],
   );
-  const numbers = items.map((item) => item.number);
 
   const invalidRow = parsed.find(
     (entry) => entry.row.value.trim() !== "" && entry.number === null,
@@ -171,12 +196,31 @@ export function AddVolumesDialog({
   }
 
   async function handleSubmit() {
-    if (invalidRow !== undefined) {
+    const expandedRows = expandRows(rows);
+
+    if (expandedRows !== rows) {
+      setRows(expandedRows);
+    }
+
+    const submittedItems = buildAddItems(
+      expandedRows.map((row) => ({
+        number:
+          row.value.trim() === "" ? null : extractNumberFromScan(row.value),
+        note: row.note,
+      })),
+    );
+    const invalidSubmittedRow = expandedRows.find(
+      (row) => row.value.trim() !== "" && extractNumberFromScan(row.value) === null,
+    );
+
+    if (invalidSubmittedRow !== undefined) {
       setError({ kind: "text", message: t`Eine Nummer konnte nicht gelesen werden.` });
       return;
     }
 
-    const validation = validateAddNumbers(numbers);
+    const validation = validateAddNumbers(
+      submittedItems.map((item) => item.number),
+    );
 
     if (!validation.ok) {
       setError(
@@ -191,7 +235,7 @@ export function AddVolumesDialog({
     setError(null);
 
     try {
-      await onAdd(items);
+      await onAdd(submittedItems);
       onClose();
     } catch (submitError) {
       setError({
@@ -225,7 +269,8 @@ export function AddVolumesDialog({
         </h2>
         <p className="mt-1 mb-4 text-sm opacity-70">
           <Trans>
-            Bis zu {MAX_ADD_ITEMS} Bände auf einmal. Unbekannte Nummern und
+            Beliebig viele Bände auf einmal. Mehrere Nummern mit Komma,
+            Semikolon oder Zeilenumbruch trennen; unbekannte Nummern und
             doppelte Exemplare sind erlaubt.
           </Trans>
         </p>
@@ -350,6 +395,9 @@ export function AddVolumesDialog({
                             ),
                           );
                         }}
+                        onBlur={() => {
+                          setRows((current) => expandRows(current));
+                        }}
                       />
                     </label>
                     <button
@@ -439,15 +487,13 @@ export function AddVolumesDialog({
               );
             })}
 
-            {rows.length < MAX_ADD_ITEMS && (
-              <button
-                type="button"
-                className="btn btn-sm btn-ghost self-start"
-                onClick={() => setRows((current) => [...current, createRow()])}
-              >
-                <Trans>Weiterer Band</Trans>
-              </button>
-            )}
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost self-start"
+              onClick={() => setRows((current) => [...current, createRow()])}
+            >
+              <Trans>Weiterer Band</Trans>
+            </button>
 
             {error !== null && (
               <div role="alert" className="alert alert-error alert-soft">
