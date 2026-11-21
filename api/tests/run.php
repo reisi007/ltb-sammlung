@@ -183,6 +183,34 @@ echo "Persistenz\n";
 $second = new Store($databasePath, $seedPath);
 check('zweiter Start seedet nicht erneut', count($second->collection('admin')['ltb']) === 4);
 
+echo "Seriennamen\n";
+$seededNames = array_column($second->collection('admin')['specials'], 'name');
+check(
+    'Seed-Reihe wird auf den offiziellen Namen migriert',
+    in_array('LTB Young Comics', $seededNames, true)
+        && !in_array('Young', $seededNames, true)
+);
+$store->createSeries('admin', 'Enten Edition');
+$store->addSeriesNumbers('admin', 'Enten Edition', [1, 2]);
+$store->createSeries('admin', 'LTB Enten-Edition');
+$store->addSeriesNumbers('admin', 'LTB Enten-Edition', [2, 3]);
+$renamed = new Store($databasePath, $seedPath);
+$renamedSpecials = array_column($renamed->collection('admin')['specials'], null, 'name');
+$entenNumbers = $renamedSpecials['LTB Enten-Edition']['numbers'] ?? [];
+sort($entenNumbers);
+check(
+    'Umbenennung fuehrt Nummern zusammen',
+    !isset($renamedSpecials['Enten Edition']) && $entenNumbers === [1, 2, 3]
+);
+$renamedAgain = new Store($databasePath, $seedPath);
+$entenCount = 0;
+foreach ($renamedAgain->collection('admin')['specials'] as $series) {
+    if ($series['name'] === 'LTB Enten-Edition') {
+        $entenCount += 1;
+    }
+}
+check('Umbenennung ist idempotent', $entenCount === 1);
+
 echo "Meta-Nachtrag\n";
 $legacyDb = new PDO('sqlite:' . $databasePath);
 $legacyDb->exec("DELETE FROM meta WHERE key = 'seed_synced_at'");

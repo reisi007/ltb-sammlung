@@ -2,6 +2,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { useEffect, useRef, useState } from "react";
 import {
   MAX_ADD_ITEMS,
+  canonicalSeriesName,
   extractNumberFromScan,
   parseVolumeInput,
   validateAddNumbers,
@@ -31,7 +32,6 @@ export function AddSeriesDialog({
 }: AddSeriesDialogProps) {
   const { t } = useLingui();
   const dialogRef = useRef<HTMLDialogElement | null>(null);
-  const [selected, setSelected] = useState("");
   const [name, setName] = useState("");
   const [numbersText, setNumbersText] = useState("");
   const [scanning, setScanning] = useState(false);
@@ -46,10 +46,11 @@ export function AddSeriesDialog({
     }
 
     if (open && !dialog.open) {
-      const known =
-        initialSeries !== undefined && seriesNames.includes(initialSeries);
-      setSelected(known ? (initialSeries as string) : "");
-      setName(known ? "" : (initialSeries ?? ""));
+      setName(
+        initialSeries === undefined
+          ? ""
+          : canonicalSeriesName(initialSeries, seriesNames),
+      );
       setNumbersText(
         initialNumbers === undefined || initialNumbers.length === 0
           ? ""
@@ -67,8 +68,7 @@ export function AddSeriesDialog({
   }, [open, initialSeries, initialNumbers, seriesNames]);
 
   const numbers = parseVolumeInput(numbersText);
-  const normalizedName =
-    selected !== "" ? selected : name.trim().replace(/\s+/g, " ");
+  const normalizedName = canonicalSeriesName(name, seriesNames);
 
   async function handleSubmit() {
     if (normalizedName === "") {
@@ -128,7 +128,7 @@ export function AddSeriesDialog({
         </h2>
         <p className="mt-1 mb-4 text-sm opacity-70">
           <Trans>
-            Reihe auswählen oder neu anlegen und bis zu {MAX_ADD_ITEMS} Bände
+            Reihe eingeben oder aus den Vorschlägen wählen und bis zu {MAX_ADD_ITEMS} Bände
             eintragen. Bereits vorhandene Bände werden übersprungen.
           </Trans>
         </p>
@@ -164,38 +164,28 @@ export function AddSeriesDialog({
               <span className="label-text text-xs">
                 <Trans>Reihe</Trans>
               </span>
-              <select
-                className="select w-full"
-                value={selected}
-                onChange={(event) => setSelected(event.target.value)}
-                disabled={initialSeries !== undefined && seriesNames.includes(initialSeries)}
-              >
-                <option value="">
-                  <Trans>Neue Reihe anlegen …</Trans>
-                </option>
+              <input
+                type="text"
+                list="series-name-options"
+                className="input w-full"
+                placeholder={t`z. B. LTB Phantomias Collection`}
+                value={name}
+                maxLength={60}
+                disabled={initialSeries !== undefined}
+                onChange={(event) => setName(event.target.value)}
+              />
+              <datalist id="series-name-options">
                 {seriesNames.map((series) => (
-                  <option key={series} value={series}>
-                    {series}
-                  </option>
+                  <option key={series} value={series} />
                 ))}
-              </select>
+              </datalist>
+              <span className="label-text-alt mt-1 block opacity-60">
+                <Trans>
+                  Vorschläge erscheinen beim Tippen; bekannte Kurzformen werden
+                  auf den offiziellen Namen gesetzt.
+                </Trans>
+              </span>
             </label>
-
-            {selected === "" && (
-              <label className="block">
-                <span className="label-text text-xs">
-                  <Trans>Neuer Reihenname</Trans>
-                </span>
-                <input
-                  type="text"
-                  className="input w-full"
-                  placeholder={t`z. B. Micky Maus Legacy Collection`}
-                  value={name}
-                  maxLength={60}
-                  onChange={(event) => setName(event.target.value)}
-                />
-              </label>
-            )}
 
             <div className="flex items-end gap-2">
               <label className="flex-1">

@@ -3,6 +3,7 @@ import {
   MAX_ADD_ITEMS,
   MAX_SEARCH_NUMBERS,
   buildAddItems,
+  canonicalSeriesName,
   extractNumberFromScan,
   getDuplicateNumbers,
   parseSearchNumbers,
@@ -71,6 +72,29 @@ describe("validateAddNumbers", () => {
     const numbers = Array.from({ length: MAX_ADD_ITEMS + 1 }, (_, index) => index + 1);
 
     expect(validateAddNumbers(numbers, MAX_ADD_ITEMS).error).toBe("too-many");
+  });
+});
+
+describe("canonicalSeriesName", () => {
+  const known = ["LTB Phantomias Collection", "LTB Ultimate Phantomias"];
+
+  it("loest bekannte Kurzformen auf die offiziellen Namen auf", () => {
+    expect(canonicalSeriesName("Phantomias Collection", known)).toBe(
+      "LTB Phantomias Collection",
+    );
+    expect(canonicalSeriesName("  premium+ ", known)).toBe("LTB Premium +");
+    expect(canonicalSeriesName("young", known)).toBe("LTB Young Comics");
+  });
+
+  it("uebernimmt bekannte Namen unabhaengig von der Schreibweise", () => {
+    expect(canonicalSeriesName("ltb phantomias collection", known)).toBe(
+      "LTB Phantomias Collection",
+    );
+  });
+
+  it("laesst neue Namen stehen und normalisiert Leerraum", () => {
+    expect(canonicalSeriesName("  Neue   Reihe  ", known)).toBe("Neue Reihe");
+    expect(canonicalSeriesName("   ", known)).toBe("");
   });
 });
 

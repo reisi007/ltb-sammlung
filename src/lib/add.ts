@@ -182,6 +182,47 @@ export function getDuplicateNumbers(
 }
 
 /**
+ * Frühere bzw. abgekürzte Reihennamen -> offizielle Schreibweise. Die gleiche
+ * Zuordnung nutzt die Datenbank-Migration.
+ */
+export const SERIES_ALIASES: Record<string, string> = {
+  "enten edition": "LTB Enten-Edition",
+  "ltb-premium": "LTB Premium",
+  "premium+": "LTB Premium +",
+  "ultimativer phantomias": "LTB Ultimate Phantomias",
+  "ultimate phantomias": "LTB Ultimate Phantomias",
+  young: "LTB Young Comics",
+  "young comics": "LTB Young Comics",
+  halloween: "LTB Halloween",
+  "ltb-history": "LTB History",
+  "phantomias collection": "LTB Phantomias Collection",
+  "entenhausens unterwelt": "LTB Sonderedition – Entenhausens Unterwelt",
+};
+
+/**
+ * Bringt eine Eingabe auf den offiziellen Reihennamen. Bekannte Namen werden
+ * ohne Rücksicht auf Groß-/Kleinschreibung übernommen; unbekannte Namen
+ * bleiben (getrimmt) erhalten, damit neue Reihen möglich sind.
+ */
+export function canonicalSeriesName(
+  value: string,
+  known: readonly string[] = [],
+): string {
+  const normalized = value.trim().replace(/\s+/g, " ");
+
+  if (normalized === "") {
+    return "";
+  }
+
+  const candidate = SERIES_ALIASES[normalized.toLowerCase()] ?? normalized;
+
+  return (
+    known.find((name) => name.toLowerCase() === candidate.toLowerCase()) ??
+    candidate
+  );
+}
+
+/**
  * Teilt eine Dialogzeile an Komma, Semikolon oder Zeilenumbruch. Leerzeichen
  * bleiben Teil eines Tokens, damit "LTB 219" zusammenbleibt.
  */

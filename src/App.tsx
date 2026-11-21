@@ -808,7 +808,11 @@ function CollectionView({
               <Trans>Eigene Reihe mit eigenen Nummern.</Trans>
             </p>
           </div>
-          <RowList rows={filteredDonaldDuck} />
+          <RowList
+            rows={filteredDonaldDuck}
+            catalog={catalog}
+            seriesName="Donald Duck"
+          />
         </section>
       )}
 
@@ -827,7 +831,11 @@ function CollectionView({
               <Trans>Eigene Reihe mit eigenen Nummern.</Trans>
             </p>
           </div>
-          <RowList rows={filteredPanzerknacker} />
+          <RowList
+            rows={filteredPanzerknacker}
+            catalog={catalog}
+            seriesName="Panzerknacker & Co"
+          />
         </section>
       )}
 
@@ -844,7 +852,12 @@ function CollectionView({
       <AddSeriesDialog
         open={seriesDialog !== null}
         catalog={catalog}
-        seriesNames={collection.specials.map((series) => series.name)}
+        seriesNames={[
+          ...new Set([
+            ...collection.specials.map((series) => series.name),
+            ...Object.keys(catalog.series),
+          ]),
+        ].sort((a, b) => a.localeCompare(b, "de"))}
         initialSeries={seriesDialog?.series}
         initialNumbers={seriesDialog?.numbers}
         onClose={() => setSeriesDialog(null)}

@@ -17,6 +17,23 @@ final class Store
 {
     private const KINDS = ['ltb', 'donaldDuck', 'panzerknacker'];
 
+    /**
+     * Frühere Namen aus der Sammlung -> offizielle Schreibweise der Reihen.
+     * Die Migration führt bestehende Nummern zusammen statt Duplikate zu
+     * erzeugen und ist idempotent.
+     */
+    private const SERIES_RENAMES = [
+        'Enten Edition' => 'LTB Enten-Edition',
+        'LTB-Premium' => 'LTB Premium',
+        'Premium+' => 'LTB Premium +',
+        'Ultimativer Phantomias' => 'LTB Ultimate Phantomias',
+        'Young' => 'LTB Young Comics',
+        'Halloween' => 'LTB Halloween',
+        'LTB-History' => 'LTB History',
+        'Phantomias Collection' => 'LTB Phantomias Collection',
+        'Entenhausens Unterwelt' => 'LTB Sonderedition – Entenhausens Unterwelt',
+    ];
+
     private PDO $db;
 
     public function __construct(string $databasePath, private readonly string $seedPath)
@@ -35,6 +52,7 @@ final class Store
         $this->db->exec('PRAGMA busy_timeout = 5000');
         $this->migrate();
         $this->seedIfEmpty();
+        $this->migrateSeriesNames();
         $this->backfillSeedSyncedAt();
         $this->purgeExpiredSessions();
     }
@@ -196,6 +214,52 @@ final class Store
                     UNIQUE (owner, series, number)
                 )'
             );
+        }
+    }
+
+    /**
+     * Benennt Reihen auf die offiziellen Namen um. Existiert der neue Name
+     * bereits, werden die Nummern zusammengeführt; die alte Zeile entfällt.
+     */
+    private function migrateSeriesNames(): void
+    {
+        foreach (self::SERIES_RENAMES as $old => $new) {
+            $owners = $this->db
+                ->prepare('SELECT DISTINCT owner FROM series WHERE name = ?');
+            $owners->execute([$old]);
+            $ownerNames = $owners->fetchAll(PDO::FETCH_COLUMN);
+
+            foreach ($ownerNames as $owner) {
+                $this->db->beginTransaction();
+
+                try {
+                    $insertSeries = $this->db->prepare(
+                        'INSERT OR IGNORE INTO series (owner, name, position)
+                         SELECT owner, ?, position FROM series
+                         WHERE owner = ? AND name = ?'
+                    );
+                    $insertSeries->execute([$new, (string) $owner, $old]);
+
+                    $insertNumbers = $this->db->prepare(
+                        'INSERT OR IGNORE INTO series_numbers (owner, series, number)
+                         SELECT owner, ?, number FROM series_numbers
+                         WHERE owner = ? AND series = ?'
+                    );
+                    $insertNumbers->execute([$new, (string) $owner, $old]);
+
+                    $this->db
+                        ->prepare('DELETE FROM series_numbers WHERE owner = ? AND series = ?')
+                        ->execute([(string) $owner, $old]);
+                    $this->db
+                        ->prepare('DELETE FROM series WHERE owner = ? AND name = ?')
+                        ->execute([(string) $owner, $old]);
+                    $this->db->commit();
+                } catch (Throwable $error) {
+                    $this->db->rollBack();
+
+                    throw $error;
+                }
+            }
         }
     }
 

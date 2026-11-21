@@ -24,14 +24,53 @@ const SERIES_BASE = `${OFFICIAL_SITE_BASE}/ausgaben/nebenreihen`;
  */
 const SPECIAL_SERIES = [
   { name: "LTB Spezial", slug: "spezial" },
-  { name: "Enten Edition", slug: "enten-edition" },
-  { name: "LTB-Premium", slug: "premium" },
-  { name: "Premium+", slug: "ltb-premium-plus" },
-  { name: "Ultimativer Phantomias", slug: "ultimate-phantomias" },
-  { name: "Young", slug: "ltb-young-comics" },
-  { name: "Halloween", slug: "halloween" },
-  { name: "LTB-History", slug: "history" },
+  { name: "LTB Enten-Edition", slug: "enten-edition" },
+  { name: "LTB Premium", slug: "premium" },
+  { name: "LTB Premium +", slug: "ltb-premium-plus" },
+  { name: "LTB Ultimate Phantomias", slug: "ultimate-phantomias" },
+  { name: "LTB Young Comics", slug: "ltb-young-comics" },
+  { name: "LTB Halloween", slug: "halloween" },
+  { name: "LTB History", slug: "history" },
+  { name: "LTB Phantomias Collection", slug: "LTB-Phantomias-Collection" },
 ];
+
+/**
+ * Reihen, die nur im Egmont-Shop erscheinen (nicht in der offiziellen
+ * Nebenreihen-Übersicht). Cover werden ausschließlich verlinkt.
+ */
+const EGMONT_SERIES = [
+  {
+    name: "Micky Maus Legacy Collection",
+    slug: "micky-maus-legacy-collection",
+    maxIssues: 12,
+  },
+];
+
+/**
+ * Duckipedia-Artikel der Form "DD 201" bzw. "Panzerknacker & Co 10" enthalten
+ * das Cover im Infobox-Feld `BILD`.
+ */
+const DUCKIPEDIA_SERIES = [
+  { name: "Donald Duck", pagePrefix: "DD " },
+  { name: "Panzerknacker & Co", pagePrefix: "Panzerknacker & Co " },
+];
+
+/**
+ * Frühere Namen aus der Sammlung -> offizielle Schreibweise. Wird für den
+ * Vergleich mit dem vorhandenen Katalog genutzt, damit eine reine Umbenennung
+ * nicht als geschrumpfte Reihe gilt.
+ */
+const SERIES_ALIASES = {
+  "enten edition": "LTB Enten-Edition",
+  "ltb-premium": "LTB Premium",
+  "premium+": "LTB Premium +",
+  "ultimativer phantomias": "LTB Ultimate Phantomias",
+  young: "LTB Young Comics",
+  halloween: "LTB Halloween",
+  "ltb-history": "LTB History",
+  "phantomias collection": "LTB Phantomias Collection",
+  "entenhausens unterwelt": "LTB Sonderedition – Entenhausens Unterwelt",
+};
 const OUTPUT_FILE = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "../src/data/catalog.json",
@@ -504,6 +543,238 @@ async function crawlSeries({ name, slug }) {
   return [...entries.values()].sort((a, b) => a.number - b.number);
 }
 
+/**
+ * Sammelt alle Duckipedia-Seiten mit dem gegebenen Präfix (Numerierung am
+ * Ende der Seite). `allpages` liefert maximal 500 Einträge pro Aufruf.
+ */
+async function listDuckipediaPages(prefix) {
+  const pages = [];
+  let continuation = null;
+  let request = 0;
+
+  do {
+    const parameters = {
+      action: "query",
+      list: "allpages",
+      apprefix: prefix,
+      apnamespace: "0",
+      aplimit: "500",
+      format: "json",
+    };
+
+    if (continuation !== null) {
+      parameters.apcontinue = continuation;
+    }
+
+    const data = await fetchJson(
+      apiUrl(parameters),
+      `Duckipedia-Seiten (${prefix}, Runde ${request + 1})`,
+    );
+    const batch = data?.query?.allpages;
+
+    if (!Array.isArray(batch)) {
+      throw new Error(`Duckipedia-Seiten (${prefix}): unerwartete API-Antwort.`);
+    }
+
+    for (const page of batch) {
+      if (typeof page?.title === "string") {
+        pages.push(page.title);
+      }
+    }
+
+    continuation =
+      typeof data?.continue?.apcontinue === "string"
+        ? data.continue.apcontinue
+        : null;
+    request += 1;
+
+    if (continuation !== null) {
+      await sleep(BATCH_PAUSE_MS);
+    }
+  } while (continuation !== null && request < 20);
+
+  return pages;
+}
+
+/** Liest das erste Cover (`|BILD=`) aus Infobox-Wikitext. */
+function parseInfoboxCover(wikitext) {
+  const match = /\|\s*BILD\s*=\s*(?:\[\[)?(?:Datei|File|Image):([^|\]\n]+)/i.exec(
+    wikitext,
+  );
+
+  return match === null ? null : match[1].trim();
+}
+
+/** Holt die Cover-Dateinamen für numerierte Duckipedia-Artikel. */
+async function fetchDuckipediaCovers(entries) {
+  const files = new Map();
+  const byTitle = new Map(
+    entries.map((entry) => [normalizeTitle(entry.title), entry.number]),
+  );
+
+  for (let offset = 0; offset < entries.length; offset += BATCH_SIZE) {
+    const batch = entries.slice(offset, offset + BATCH_SIZE);
+    const label = `Duckipedia-Baende ${Math.floor(offset / BATCH_SIZE) + 1}`;
+    const data = await fetchJson(
+      apiUrl({
+        action: "query",
+        prop: "revisions",
+        rvprop: "content",
+        rvslots: "main",
+        titles: batch.map((entry) => entry.title).join("|"),
+        redirects: "1",
+        format: "json",
+      }),
+      label,
+    );
+    const pages = data?.query?.pages;
+
+    if (!pages || typeof pages !== "object") {
+      throw new Error(`${label}: unerwartete API-Antwort ohne query.pages.`);
+    }
+
+    for (const page of Object.values(pages)) {
+      if (typeof page?.title !== "string") {
+        continue;
+      }
+
+      const number = byTitle.get(normalizeTitle(page.title));
+
+      if (number === undefined) {
+        continue;
+      }
+
+      const content = page.revisions?.[0]?.slots?.main?.["*"];
+      const file = typeof content === "string" ? parseInfoboxCover(content) : null;
+
+      if (file !== null) {
+        files.set(number, file);
+      }
+    }
+
+    if (offset + BATCH_SIZE < entries.length) {
+      await sleep(BATCH_PAUSE_MS);
+    }
+  }
+
+  return files;
+}
+
+async function crawlDuckipediaSeries({ name, pagePrefix }) {
+  const pages = await listDuckipediaPages(pagePrefix);
+  const pattern = new RegExp(
+    `^${pagePrefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\d+)$`,
+  );
+  const entries = [];
+
+  for (const title of pages) {
+    const match = pattern.exec(title);
+
+    if (match === null) {
+      continue;
+    }
+
+    const number = Number.parseInt(match[1], 10);
+
+    if (Number.isSafeInteger(number)) {
+      entries.push({ title, number });
+    }
+  }
+
+  entries.sort((a, b) => a.number - b.number);
+
+  if (entries.length === 0) {
+    return [];
+  }
+
+  const files = await fetchDuckipediaCovers(entries);
+
+  if (files.size === 0) {
+    return [];
+  }
+
+  const coverUrls = await resolveCoverUrls(files);
+
+  return entries.map(({ number }) => ({
+    number,
+    title: null,
+    coverUrl: coverUrls.get(number) ?? null,
+  }));
+}
+
+/** Liest Produktname und Cover aus einer Egmont-Shop-Produktseite. */
+function parseEgmontProduct(html) {
+  const match =
+    /<script type="application\/json" data-state="product-details-product">\s*(\{[\s\S]*?\})\s*<\/script>/.exec(
+      html,
+    );
+
+  if (match === null) {
+    return null;
+  }
+
+  let product;
+
+  try {
+    product = JSON.parse(match[1]);
+  } catch {
+    return null;
+  }
+
+  const imageUrl =
+    typeof product?.imageUrl === "string" ? product.imageUrl : null;
+  const coverUrl =
+    imageUrl === null ? null : new URL(imageUrl, "https://www.egmont-shop.de").toString();
+  const title = typeof product?.name === "string" ? product.name : null;
+
+  return { title, coverUrl };
+}
+
+/** Wie fetchHtml, aber 404 bedeutet "Reihe endet hier" statt Fehler. */
+async function fetchHtmlOrNull(url, label) {
+  try {
+    return await fetchHtml(url, label);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("HTTP 404")) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+async function crawlEgmontSeries({ name, slug, maxIssues }) {
+  const entries = [];
+  let misses = 0;
+
+  for (let number = 1; number <= maxIssues && misses < 2; number += 1) {
+    const issue = String(number).padStart(2, "0");
+    const url = `https://www.egmont-shop.de/${slug}-nr-${issue}/`;
+    const html = await fetchHtmlOrNull(url, `${name} ${issue}`);
+
+    if (html === null) {
+      misses += 1;
+      continue;
+    }
+
+    misses = 0;
+    const product = parseEgmontProduct(html);
+
+    if (product === null) {
+      continue;
+    }
+
+    entries.push({
+      number,
+      title: product.title,
+      coverUrl: product.coverUrl,
+    });
+    await sleep(BATCH_PAUSE_MS);
+  }
+
+  return entries;
+}
+
 async function previousCatalogStats() {
   try {
     const previous = JSON.parse(await readFile(OUTPUT_FILE, "utf8"));
@@ -512,15 +783,16 @@ async function previousCatalogStats() {
       return null;
     }
 
-    const series =
-      previous.series !== null && typeof previous.series === "object"
-        ? Object.fromEntries(
-            Object.entries(previous.series).map(([name, entries]) => [
-              name,
-              Array.isArray(entries) ? entries.length : 0,
-            ]),
-          )
-        : {};
+    const series = {};
+
+    if (previous.series !== null && typeof previous.series === "object") {
+      for (const [name, entries] of Object.entries(previous.series)) {
+        const canonical = SERIES_ALIASES[name.toLowerCase()] ?? name;
+        const count = Array.isArray(entries) ? entries.length : 0;
+
+        series[canonical] = Math.max(series[canonical] ?? 0, count);
+      }
+    }
 
     return {
       entries: previous.entries.length,
@@ -588,6 +860,30 @@ async function main() {
     series[definition.name] = seriesEntries;
   }
 
+  for (const definition of EGMONT_SERIES) {
+    const seriesEntries = await crawlEgmontSeries(definition);
+
+    if (seriesEntries.length === 0) {
+      throw new Error(
+        `${definition.name}: keine Baende im Egmont-Shop gefunden. Es wurde nichts geschrieben.`,
+      );
+    }
+
+    series[definition.name] = seriesEntries;
+  }
+
+  for (const definition of DUCKIPEDIA_SERIES) {
+    const seriesEntries = await crawlDuckipediaSeries(definition);
+
+    if (seriesEntries.length === 0) {
+      throw new Error(
+        `${definition.name}: keine Cover auf Duckipedia gefunden. Es wurde nichts geschrieben.`,
+      );
+    }
+
+    series[definition.name] = seriesEntries;
+  }
+
   const catalog = {
     meta: {
       sources: [
@@ -596,6 +892,9 @@ async function main() {
         API_URL,
         `${OFFICIAL_COVER_BASE}/LTB-<nummer>.jpg (geprüfte Fallback-Muster)`,
         `${SERIES_BASE}/<slug>`,
+        "https://www.egmont-shop.de/<slug>-nr-<nr>/",
+        "https://de.duckipedia.org/wiki/DD_<nummer>",
+        "https://de.duckipedia.org/wiki/Panzerknacker_%26_Co_<nummer>",
       ],
       syncedAt: new Date().toISOString(),
     },
