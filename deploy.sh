@@ -52,7 +52,7 @@ if [[ "$DRY_RUN" == true ]]; then
   echo "  2. Pruefung: dist/index.html nicht leer und mit /assets/-Pfaden"
   echo "  3. ssh root@reisinger.pictures 'mkdir -p …/ltb.all-the.rest'"
   echo "  4. rsync ${RSYNC_FLAGS[*]} ./dist/ $REMOTE"
-  echo "  5. curl -o /dev/null -w '%{http_code}' https://ltb.all-the.rest/ (erwartet 401)"
+  echo "  5. curl -o /dev/null -w '%{http_code}' https://ltb.all-the.rest/ (erwartet 302 auf /login.html)"
   exit 0
 fi
 
@@ -86,11 +86,13 @@ echo "Spiegle dist/ nach $REMOTE ..."
 "$RSYNC_BIN" ./dist/ "$REMOTE" "${RSYNC_FLAGS[@]}" --rsh="ssh $SSH_OPTS"
 
 echo "Pruefe, ob die Seite antwortet (ohne Cookie erwartet: 302 auf /login.html) ..."
-status="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 https://ltb.all-the.rest/ || true)"
-if [[ "$status" != "302" && "$status" != "401" && "$status" != "200" ]]; then
-  echo "FEHLER: https://ltb.all-the.rest/ antwortet mit HTTP $status." >&2
+response="$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 15 https://ltb.all-the.rest/ || true)"
+read -r status location <<< "$response"
+if [[ "$status" != "302" || "$location" != "https://ltb.all-the.rest/login.html" ]]; then
+  echo "FEHLER: https://ltb.all-the.rest/ antwortet mit HTTP $status (Ziel: ${location:-keins})." >&2
+  echo "        Erwartet wird 302 auf /login.html; alles andere heisst: Auth ist offen." >&2
   exit 1
 fi
-echo "HTTP $status"
+echo "HTTP $status -> $location"
 
 echo "Deploy abgeschlossen: https://ltb.all-the.rest/"

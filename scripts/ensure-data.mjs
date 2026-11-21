@@ -4,10 +4,11 @@
  *
  * Die echten Daten (collection.json, catalog.json) sind bewusst nicht im
  * öffentlichen Repository. Für einen frischen Checkout werden beim Build
- * leere Platzhalter aus den *.example.json kopiert; `--check` verweigert das
- * und bricht ab, damit ein Deploy nie versehentlich leere Daten ausliefert.
+ * leere Platzhalter aus den *.example.json kopiert; `--check` prüft, dass
+ * echte Daten vorliegen, damit ein Deploy nie versehentlich leere Daten
+ * ausliefert.
  */
-import { access, copyFile } from "node:fs/promises";
+import { access, copyFile, readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -15,33 +16,76 @@ const dataDir = resolve(dirname(fileURLToPath(import.meta.url)), "../src/data");
 const checkOnly = process.argv.includes("--check");
 
 const files = [
-  ["collection.json", "collection.example.json"],
-  ["catalog.json", "catalog.example.json"],
+  {
+    target: "collection.json",
+    example: "collection.example.json",
+    hint: "npm run sync:data",
+    // Mindestinhalt, den ein Platzhalter nicht hat.
+    isReal: (data) =>
+      Array.isArray(data?.ltb) &&
+      data.ltb.length > 0 &&
+      Array.isArray(data?.specials) &&
+      data.specials.length > 0,
+  },
+  {
+    target: "catalog.json",
+    example: "catalog.example.json",
+    hint: "npm run sync:catalog",
+    isReal: (data) =>
+      Array.isArray(data?.entries) && data.entries.length > 0,
+  },
 ];
 
-let missing = false;
+let failed = false;
 
-for (const [targetName, exampleName] of files) {
-  const target = resolve(dataDir, targetName);
+for (const file of files) {
+  const target = resolve(dataDir, file.target);
 
   try {
     await access(target);
   } catch {
     if (checkOnly) {
       console.error(
-        `FEHLER: src/data/${targetName} fehlt. Bitte zuerst ` +
-          "`npm run sync:data` bzw. `npm run sync:catalog` ausführen.",
+        `FEHLER: src/data/${file.target} fehlt. Bitte zuerst ` +
+          `\`${file.hint}\` ausführen.`,
       );
-      missing = true;
-    } else {
-      await copyFile(resolve(dataDir, exampleName), target);
-      console.info(
-        `src/data/${targetName} fehlte — Platzhalter aus ${exampleName} kopiert.`,
-      );
+      failed = true;
+      continue;
     }
+
+    await copyFile(resolve(dataDir, file.example), target);
+    console.info(
+      `src/data/${file.target} fehlte — Platzhalter aus ${file.example} kopiert.`,
+    );
+    continue;
+  }
+
+  if (!checkOnly) {
+    continue;
+  }
+
+  let data;
+
+  try {
+    data = JSON.parse(await readFile(target, "utf8"));
+  } catch (error) {
+    console.error(
+      `FEHLER: src/data/${file.target} ist kein gültiges JSON: ` +
+        (error instanceof Error ? error.message : String(error)),
+    );
+    failed = true;
+    continue;
+  }
+
+  if (!file.isReal(data)) {
+    console.error(
+      `FEHLER: src/data/${file.target} enthält nur Platzhalterdaten. ` +
+        `Bitte \`${file.hint}\` ausführen.`,
+    );
+    failed = true;
   }
 }
 
-if (missing) {
+if (failed) {
   process.exitCode = 1;
 }
