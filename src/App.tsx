@@ -1,5 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useEffect, useState, type ReactNode } from "react";
+import { AddVolumesDialog } from "./components/AddVolumesDialog";
 import {
   MatchCount,
   NumberCount,
@@ -11,12 +12,13 @@ import { NumberGrid } from "./components/NumberGrid";
 import { RowList } from "./components/RowList";
 import { SeriesCover } from "./components/SeriesCover";
 import { isLocale, loadCatalog as loadMessages, type Locale } from "./i18n";
+import { getDuplicateNumbers, type AddItem } from "./lib/add";
 import {
   formatCount,
   formatDateTime,
   getCatalogEntry,
-  getSeriesEntry,
   getRowsForNumber,
+  getSeriesEntry,
   getStats,
   isNumberQuery,
   loadCatalogData,
@@ -26,7 +28,8 @@ import {
   type Collection,
 } from "./lib/collection";
 import {
-  snapshotRepository,
+  isWritableRepository,
+  loadInitialData,
   type CollectionRepository,
 } from "./lib/repository";
 
@@ -34,7 +37,12 @@ type TabId = "ltb" | "specials" | "donaldDuck" | "panzerknacker";
 
 type LoadState =
   | { status: "loading" }
-  | { status: "ready"; collection: Collection; catalog: Catalog }
+  | {
+      status: "ready";
+      collection: Collection;
+      catalog: Catalog;
+      repository: CollectionRepository;
+    }
   | { status: "error"; message: string };
 
 interface AppProps {
@@ -166,6 +174,7 @@ function Footer({ collection, catalog, locale }: FooterProps) {
             Kein offizielles Angebot von Disney, Egmont oder Google.
           </Trans>
         </p>
+        <p className="opacity-60">Version {__APP_VERSION__}</p>
       </div>
     </footer>
   );
@@ -177,8 +186,10 @@ interface CollectionViewProps {
   locale: Locale;
   query: string;
   activeTab: TabId;
+  canWrite: boolean;
   onQueryChange: (query: string) => void;
   onTabChange: (tab: TabId) => void;
+  onAddVolumes: (items: readonly AddItem[]) => Promise<void>;
 }
 
 function CollectionView({
@@ -187,12 +198,18 @@ function CollectionView({
   locale,
   query,
   activeTab,
+  canWrite,
   onQueryChange,
   onTabChange,
+  onAddVolumes,
 }: CollectionViewProps) {
   const { t } = useLingui();
   const stats = getStats(collection);
   const ownedNumbers = new Set(collection.ltb.map((row) => row.number));
+  const duplicates = getDuplicateNumbers(collection.ltb);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addNumbers, setAddNumbers] = useState<readonly number[] | undefined>();
+  const [feedback, setFeedback] = useState<string | null>(null);
   const exactNumber = parseExactNumber(query);
   const exactRows =
     exactNumber === null ? [] : getRowsForNumber(collection.ltb, exactNumber);
@@ -244,6 +261,21 @@ function CollectionView({
     onQueryChange(String(number));
     onTabChange("ltb");
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function openAddDialog(numbers?: readonly number[]) {
+    setFeedback(null);
+    setAddNumbers(numbers);
+    setAddOpen(true);
+  }
+
+  async function handleAdd(items: readonly AddItem[]) {
+    await onAddVolumes(items);
+    setFeedback(
+      items.length === 1
+        ? t`${items.length} Band hinzugefügt.`
+        : t`${items.length} Bände hinzugefügt.`,
+    );
   }
 
   return (
@@ -304,32 +336,39 @@ function CollectionView({
               <Trans>Suche</Trans>
             </h2>
             <div className="flex flex-wrap gap-2">
-              <div
-                className="tooltip tooltip-bottom"
-                data-tip={t`Kamera-Scan ist noch nicht umgesetzt.`}
-              >
+              {canWrite ? (
                 <button
                   type="button"
-                  className="btn btn-sm btn-disabled"
-                  aria-disabled="true"
-                  tabIndex={-1}
+                  className="btn btn-sm btn-primary"
+                  onClick={() => openAddDialog()}
                 >
-                  <Trans>QR-Scan folgt später</Trans>
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    className="size-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                  <Trans>Bände hinzufügen</Trans>
                 </button>
-              </div>
-              <div
-                className="tooltip tooltip-bottom"
-                data-tip={t`Bearbeiten kommt mit der eigenen API (Issue #2).`}
-              >
-                <button
-                  type="button"
-                  className="btn btn-sm btn-disabled"
-                  aria-disabled="true"
-                  tabIndex={-1}
+              ) : (
+                <div
+                  className="tooltip tooltip-bottom"
+                  data-tip={t`Schreiben ist ohne API nicht möglich (nur Lesezugriff).`}
                 >
-                  <Trans>Bearbeiten folgt</Trans>
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-disabled"
+                    aria-disabled="true"
+                    tabIndex={-1}
+                  >
+                    <Trans>Nur Lesen</Trans>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -378,6 +417,25 @@ function CollectionView({
                   <Trans>mehrfach erfasst</Trans> (<RowCount count={exactRows.length} />)
                 </span>
               )}
+              {canWrite && exactNumber !== null && (
+                <button
+                  type="button"
+                  className="btn btn-xs btn-outline ml-auto"
+                  onClick={() => openAddDialog([exactNumber])}
+                >
+                  {exactRows.length > 0 ? (
+                    <Trans>Weiteres Exemplar</Trans>
+                  ) : (
+                    <Trans>Hinzufügen</Trans>
+                  )}
+                </button>
+              )}
+            </div>
+          )}
+
+          {feedback !== null && (
+            <div role="status" className="alert alert-success alert-soft">
+              <span>{feedback}</span>
             </div>
           )}
         </div>
@@ -430,6 +488,41 @@ function CollectionView({
             onSelect={selectNumber}
           />
 
+          {duplicates.size > 0 && (
+            <section className="card bg-base-100 shadow-sm">
+              <div className="card-body gap-2 p-4">
+                <h3 className="card-title text-base">
+                  <Trans>Mehrfach vorhanden</Trans>
+                  <span className="badge badge-sm">
+                    {formatCount(duplicates.size, locale)}
+                  </span>
+                </h3>
+                <p className="text-sm opacity-70">
+                  <Trans>
+                    Diese Nummern sind mit mehr als einem Exemplar erfasst.
+                    Ein Klick filtert die Liste.
+                  </Trans>
+                </p>
+                <ul className="flex flex-wrap gap-2">
+                  {[...duplicates.entries()]
+                    .sort(([a], [b]) => a - b)
+                    .map(([number, count]) => (
+                      <li key={number}>
+                        <button
+                          type="button"
+                          className="badge badge-outline badge-lg gap-1"
+                          onClick={() => selectNumber(number)}
+                        >
+                          <span>{number}</span>
+                          <span className="font-bold">×{count}</span>
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            </section>
+          )}
+
           {filteredLtb.length === 0 ? (
             <div role="status" className="alert alert-info">
               <span>
@@ -447,6 +540,7 @@ function CollectionView({
                   key={`${row.number}-${index}`}
                   row={row}
                   entry={getCatalogEntry(catalog, row.number)}
+                  copies={duplicates.get(row.number) ?? 1}
                 />
               ))}
             </div>
@@ -557,13 +651,22 @@ function CollectionView({
           <RowList rows={filteredPanzerknacker} />
         </section>
       )}
+
+      <AddVolumesDialog
+        open={addOpen}
+        catalog={catalog}
+        collection={collection}
+        initialNumbers={addNumbers}
+        onClose={() => setAddOpen(false)}
+        onAdd={handleAdd}
+      />
     </div>
   );
 }
 
 export default function App({
   initialLocale,
-  repository = snapshotRepository,
+  repository: fixedRepository,
 }: AppProps) {
   const [locale, setLocale] = useState<Locale>(initialLocale);
   const [switchingLocale, setSwitchingLocale] = useState(false);
@@ -578,10 +681,26 @@ export default function App({
   useEffect(() => {
     let cancelled = false;
 
-    Promise.all([repository.load(), loadCatalogData()])
-      .then(([collection, catalog]) => {
+    async function load() {
+      const catalog = await loadCatalogData();
+
+      if (fixedRepository !== undefined) {
+        return {
+          repository: fixedRepository,
+          collection: await fixedRepository.load(),
+          catalog,
+        };
+      }
+
+      const initial = await loadInitialData();
+
+      return { ...initial, catalog };
+    }
+
+    load()
+      .then(({ repository, collection, catalog }) => {
         if (!cancelled) {
-          setLoadState({ status: "ready", collection, catalog });
+          setLoadState({ status: "ready", collection, catalog, repository });
         }
       })
       .catch((error: unknown) => {
@@ -596,7 +715,26 @@ export default function App({
     return () => {
       cancelled = true;
     };
-  }, [repository]);
+  }, [fixedRepository]);
+
+  async function handleAddVolumes(items: readonly AddItem[]) {
+    if (loadState.status !== "ready") {
+      throw new Error("Daten sind noch nicht geladen.");
+    }
+
+    const { repository } = loadState;
+
+    if (!isWritableRepository(repository)) {
+      throw new Error("Schreiben ist ohne API nicht möglich.");
+    }
+
+    await repository.addLtbRows(items);
+    const collection = await repository.load();
+
+    setLoadState((current) =>
+      current.status === "ready" ? { ...current, collection } : current,
+    );
+  }
 
   async function handleLocaleChange(nextLocale: Locale) {
     if (nextLocale === locale) {
@@ -651,8 +789,10 @@ export default function App({
             locale={locale}
             query={query}
             activeTab={activeTab}
+            canWrite={loadState.repository.capabilities.write}
             onQueryChange={setQuery}
             onTabChange={setActiveTab}
+            onAddVolumes={handleAddVolumes}
           />
         )}
       </main>

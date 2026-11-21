@@ -75,9 +75,10 @@ lassen die vorhandene JSON-Datei unangetastet.
 
 ## Datenmodell
 
-`src/data/collection.json` ist ein Snapshot, keine normalisierte Datenbank.
-Die Datei wird lokal bzw. beim Deployment erzeugt und ist nicht eingecheckt
-(`docs/decisions.md`):
+`src/data/collection.json` ist der Seed/Snapshot, keine normalisierte
+Datenbank. Die Datei wird lokal bzw. beim Deployment erzeugt und ist nicht
+eingecheckt (`docs/decisions.md`). Auf dem Server ist die SQLite-Datenbank die
+Quelle; die JSON-Datei dient nur dem ersten Start und dem Lesefallback:
 
 ```json
 {
@@ -158,29 +159,47 @@ Alternativen, falls sich die Anforderungen ändern:
    GitHub Action. Maximale Kontrolle, erfordert aber einen eigenen Sync-/
    Auth-Schritt und ist für eine reine Leseansicht mehr Infrastruktur als nötig.
 
-## Schreibzugriff (geplant)
+## Bände erfassen (API)
 
-Bearbeiten ist in diesem Prototyp bewusst **nicht** implementiert. Der Button
-„Bearbeiten folgt“ ist deaktiviert. Statt Google OAuth wird der Schreibzugriff
-über die vorhandene Infrastruktur realisiert (Issue #2):
+Die App ist seit Version 1.0 nicht mehr nur lesend. Über **„Bände hinzufügen“**
+lassen sich **bis zu drei Bände pro Vorgang** erfassen – per Text oder per
+QR-/Barcode-Scan:
 
-- React bleibt das komplette Frontend; PHP wird nur eine schmale JSON-API über
-  SQLite (`/api/collection`, `/api/lookup`). PHP rendert keine UI und enthält
-  keine UI-Strings – Lingui bleibt die einzige i18n-Quelle.
-- SQLite liegt in einem Docker-Volume außerhalb des Web-Roots. Das Google Sheet
-  bleibt die initiale Datenquelle (Seed), danach ist SQLite die Wahrheit.
-- Caddy macht die Authentifizierung per `forward_auth` gegen den bestehenden
-  `code-auth`-Sidecar (Cookie-Gate mit eigener `/login.html`); das ist dasselbe
-  Konto wie `code.all-the.rest`. PHP vertraut nur dem von Caddy gesetzten
-  `X-Auth-User`-Header. Schreibende Requests brauchen einen Custom-Header als
-  CSRF-Schutz.
-- Deployment nach dem Muster des Projekts `form2email`: PHP-FPM-Container im
-  `webnet`, Compose in `deployment/`, Sync per rsync.
-- `CollectionRepository` (`src/lib/repository.ts`) bleibt die Abstraktion:
-  `/api/collection` zuerst, Snapshot `src/data/collection.json` als Fallback für
-  den statischen Betrieb. `WritableCollectionRepository` beschreibt bereits den
-  Schreibvertrag mit `addLtbRow`, `updateLtbRow` und `removeLtbRow`; doppelte
-  Nummern werden über `{ number, occurrence }` adressiert.
+- Text: `219`, `#219`, `LTB 219` oder mehrere durch Komma/Leerzeichen.
+- Scan: Kamera mit `BarcodeDetector` (QR, EAN, Code 128), sonst `jsQR` als
+  Fallback. Aus dem Payload wird die Nummer gelesen; fremde Inhalte werden
+  abgelehnt statt geraten.
+- Unbekannte Nummern sind erlaubt (Status „Nicht im Katalog“), ebenso doppelte
+  Exemplare. Pro Exemplar entsteht eine Zeile; `containedIn` bleibt eine freie
+  Notiz.
+- Mehrfach vorhandene Nummern zeigt die Karte als `×N`, die Suche als Badge und
+  der Abschnitt „Mehrfach vorhanden“ als filterbare Übersicht.
+
+Technik:
+
+- **Frontend**: `CollectionRepository` (`src/lib/repository.ts`) liest
+  `/api/collection` und fällt ohne API auf den lokalen Snapshot zurück (dann nur
+  lesend). `WritableCollectionRepository` schreibt über `POST/PATCH/DELETE
+  /api/ltb`.
+- **API**: `api/index.php` (PHP 8, PDO/SQLite). Routen:
+  `GET /api/collection`, `POST /api/ltb` (1–3 Zeilen), `PATCH /api/ltb`,
+  `DELETE /api/ltb`, `GET /api/health`. Duplikate werden über
+  `{ number, occurrence }` adressiert (0 = erste Zeile mit dieser Nummer).
+- **Auth**: Caddy macht `forward_auth` gegen den `code-auth`-Sidecar und setzt
+  bei FastCGI `REMOTE_USER`; die API antwortet ohne diesen Parameter mit 401.
+  Der PHP-Container ist nur im Docker-Netz `webnet` erreichbar.
+- **CSRF**: SameSite=Lax-Cookie plus Origin-Prüfung gegen den eigenen Host bei
+  schreibenden Requests.
+- **Datenbank**: SQLite im Volume `ltb_ltb_data` (Host:
+  `/var/lib/docker/volumes/ltb_ltb_data/`). Beim ersten Start wird sie aus
+  `src/data/collection.json` geseedet; danach ist sie die Quelle. Backups:
+  `docker run --rm -v ltb_ltb_data:/data -v "$PWD":/backup alpine tar czf
+  /backup/ltb-db-$(date +%F).tgz -C /data .`
+- **Deployment**: `deploy.sh` spiegelt `api/` nach
+  `/home/webadmin/websites/ltb-api`, den Seed nach
+  `/home/webadmin/websites/ltb-seed`, installiert
+  `deploy/ltb-stack/compose.yaml` nach `/opt/stacks/ltb` und startet den
+  PHP-Stack per `docker compose up -d`.
 
 ## Internationalisierung
 
@@ -256,7 +275,11 @@ das `spa`-Snippet. Der Zugang läuft über `forward_auth` gegen den
 werden wie die Seite selbst ohne Cookie ausgeliefert (die Datenchunks der App
 nicht), `/api/login`, `/api/me` und `/api/logout` gehen an denselben Dienst. Damit gilt dasselbe Konto
 wie für `code.all-the.rest`, aber ohne Browser-Basic-Dialog.
-`./deploy.sh --dry-run` zeigt die Schritte ohne Upload.
+`./deploy.sh --dry-run` zeigt die Schritte ohne Upload. Der PHP-Stack
+(`php:8.3-fpm-alpine`, 128 MB Memory-Limit) läuft als eigenes Compose-Projekt
+`ltb`; die Caddy-Konfiguration routet `/api/*` per FastCGI dorthin.
+`LTB_USER`/`LTB_PASSWORD` in der Umgebung aktivieren beim Deploy zusätzlich
+einen Login- und Lesetest gegen die API.
 
 Die App ist eine Progressive Web App (`vite-plugin-pwa`): `manifest.webmanifest`,
 Service Worker und Icons unter `public/icons/`. Die Icons sind ein eigenes,
@@ -280,10 +303,18 @@ hotlinkt die Quellen. Rechte liegen bei den jeweiligen Rechteinhabern. Das ist
 ein privates Fan-Projekt und kein offizielles Angebot von Disney, Egmont oder
 Google.
 
+## Version
+
+Aktuell ist **1.0.0**. Die Version steht in `package.json` und wird beim Build
+als `__APP_VERSION__` in den Footer geschrieben.
+
 ## Roadmap
 
-- **QR-Scan**: Der Button ist ein deaktivierter Platzhalter. Geplant ist das
-  Scannen einer Nummer per Kamera (z. B. BarcodeDetector/getUserMedia) mit
-  anschließender Suche.
-- **Bearbeiten**: PHP-API + SQLite hinter Caddy, siehe Abschnitt oben (Issue #2).
-  Kein halbfertiger OAuth-Code in diesem Prototyp.
+- **Bearbeiten/Löschen in der Oberfläche**: Die API kann `PATCH` und `DELETE`
+  bereits; die UI nutzt bisher nur das Hinzufügen. Als Nächstes: Notiz ändern
+  und einzelne Exemplare entfernen.
+- **Mehrere Nutzer**: `code-auth` ist Einzelnutzer. Der geplante eigene
+  Auth-Dienst bringt `users`/`sessions` und einen `owner`-Bezug pro Zeile
+  (`docs/decisions.md`).
+- **Synchronisation**: Das Sheet bleibt Seed. Eine Rücksynchronisation der
+  SQLite-Daten ins Sheet ist nicht vorgesehen.

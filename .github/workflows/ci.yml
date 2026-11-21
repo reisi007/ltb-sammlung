@@ -37,5 +37,11 @@ jobs:
       - name: Verify
         run: npm run verify
 
+      - name: PHP lint
+        run: npm run lint:api
+
+      - name: API tests
+        run: npm run test:api
+
       - name: Quality gates
         run: ratchet check --no-ratchet

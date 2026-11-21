@@ -1,13 +1,12 @@
 import type { Collection } from "./collection";
-import { loadCollection } from "./collection";
+import { loadCollection, parseCollection } from "./collection";
 
 /**
  * Datenzugriff für die Oberfläche.
  *
- * Die App kennt nur dieses Interface. Aktuell wird ausschließlich der lokale
- * Snapshot gelesen. Eine spätere API-Implementierung (PHP + SQLite, Issue #2)
- * kann denselben Vertrag erfüllen und zusätzlich den Schreibvertrag unten
- * anbieten, ohne dass die Anzeige umgebaut werden muss.
+ * Die App kennt nur dieses Interface. Auf dem Server erfüllt die PHP-API den
+ * Vertrag (Lesen und Schreiben); ohne API fällt die App auf den lokalen
+ * Snapshot zurück und ist dann nur lesend.
  */
 export interface CollectionRepository {
   readonly id: string;
@@ -18,22 +17,33 @@ export interface CollectionRepository {
 }
 
 /**
- * Zukünftiger Schreibvertrag. `occurrence` adressiert doppelte Nummern, weil
- * die Sammlung Zeilen bewusst nicht dedupliziert: 0 ist die erste Zeile mit
- * dieser Nummer, 1 die zweite und so weiter.
+ * Schreibvertrag. `occurrence` adressiert doppelte Nummern, weil die Sammlung
+ * Zeilen bewusst nicht dedupliziert: 0 ist die erste Zeile mit dieser Nummer,
+ * 1 die zweite und so weiter.
  */
 export interface CollectionRowKey {
   readonly number: number;
   readonly occurrence: number;
 }
 
+export interface NewCollectionRow {
+  readonly number: number;
+  readonly containedIn: string | null;
+}
+
 export interface WritableCollectionRepository extends CollectionRepository {
   readonly capabilities: {
     readonly write: true;
   };
-  addLtbRow(number: number, containedIn: string | null): Promise<void>;
+  addLtbRows(rows: readonly NewCollectionRow[]): Promise<number>;
   updateLtbRow(key: CollectionRowKey, containedIn: string | null): Promise<void>;
   removeLtbRow(key: CollectionRowKey): Promise<void>;
+}
+
+export function isWritableRepository(
+  repository: CollectionRepository,
+): repository is WritableCollectionRepository {
+  return repository.capabilities.write;
 }
 
 export function createSnapshotRepository(): CollectionRepository {
@@ -46,3 +56,95 @@ export function createSnapshotRepository(): CollectionRepository {
 
 export const snapshotRepository: CollectionRepository =
   createSnapshotRepository();
+
+async function requestJson(
+  path: string,
+  init: RequestInit = {},
+): Promise<unknown> {
+  const response = await fetch(path, {
+    credentials: "same-origin",
+    cache: "no-store",
+    ...init,
+    headers: {
+      accept: "application/json",
+      ...(init.body === undefined ? {} : { "content-type": "application/json" }),
+      ...init.headers,
+    },
+  });
+
+  if (!response.ok) {
+    let message = `HTTP ${response.status}`;
+
+    try {
+      const payload = (await response.json()) as { error?: unknown };
+
+      if (typeof payload.error === "string") {
+        message = payload.error;
+      }
+    } catch {
+      // Antwort ohne JSON — der Status reicht als Meldung.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json();
+}
+
+export function createHttpRepository(baseUrl = ""): WritableCollectionRepository {
+  return {
+    id: "http",
+    capabilities: { write: true },
+    async load() {
+      const payload = await requestJson(`${baseUrl}/api/collection`);
+
+      return parseCollection(payload);
+    },
+    async addLtbRows(rows) {
+      if (rows.length === 0) {
+        return 0;
+      }
+
+      const payload = (await requestJson(`${baseUrl}/api/ltb`, {
+        method: "POST",
+        body: JSON.stringify({ items: rows }),
+      })) as { created?: unknown };
+
+      return typeof payload.created === "number" ? payload.created : rows.length;
+    },
+    async updateLtbRow(key, containedIn) {
+      await requestJson(`${baseUrl}/api/ltb`, {
+        method: "PATCH",
+        body: JSON.stringify({ ...key, containedIn }),
+      });
+    },
+    async removeLtbRow(key) {
+      await requestJson(`${baseUrl}/api/ltb`, {
+        method: "DELETE",
+        body: JSON.stringify(key),
+      });
+    },
+  };
+}
+
+export interface InitialData {
+  repository: CollectionRepository;
+  collection: Collection;
+}
+
+/**
+ * Lädt die Sammlung über die API und fällt ohne API auf den Snapshot zurück.
+ * Der Rückgabewert enthält das Repository, damit die Oberfläche weiß, ob sie
+ * schreiben darf.
+ */
+export async function loadInitialData(): Promise<InitialData> {
+  const http = createHttpRepository();
+
+  try {
+    const collection = await http.load();
+
+    return { repository: http, collection };
+  } catch {
+    return { repository: snapshotRepository, collection: await loadCollection() };
+  }
+}

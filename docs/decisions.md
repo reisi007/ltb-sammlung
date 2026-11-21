@@ -1,6 +1,7 @@
 # Entscheidungen und Zielarchitektur
 
-**Status:** In Arbeit — Entscheidungen vom 2026-11-21, Umsetzung teilweise offen.
+**Status:** Version 1.0 umgesetzt (2026-11-21). Offen ist nur der eigene
+Multi-User-Auth-Dienst (Issue #2).
 
 Dieses Dokument hält die dauerhaften Entscheidungen fest. Offene Arbeit steht
 als GitHub-Issue im Repository, nicht hier.
@@ -96,19 +97,32 @@ Caddy-Block plus Container; die Login-Seite und die API-Pfade bleiben gleich.
   `decoding="async"`. Wenn später nötig, zuerst einen externen Image-CDN
   prüfen; ein self-hosted Proxy nur mit belegtem RAM-Budget.
 
-## 4. Auslieferung
+## 4. Auslieferung und Datenhaltung
 
 - Statischer React-Build (`dist/`) auf dem VPS, ausgeliefert von Caddy aus
   `/srv/websites/ltb.all-the.rest`.
 - Login-Seite und PWA-Assets liegen im selben Build.
-- Später ergänzt ein PHP-FPM-Container die JSON-API (Issue #2); Caddy routet
-  `/api/*` dorthin.
+- Ein PHP-FPM-Container (`ltb-php`, Compose-Projekt `ltb`, 128 MB Limit)
+  liefert die JSON-API; Caddy routet `/api/*` per FastCGI dorthin. Der
+  Container ist nur im Docker-Netz `webnet` erreichbar.
+- **SQLite ist die Quelle.** Sie liegt im Volume `ltb_ltb_data`; beim ersten
+  Start wird sie aus `src/data/collection.json` geseedet. Danach schreibt nur
+  noch die API. Das Google Sheet bleibt Seed, keine Rücksynchronisation.
+- **Schreibmodell:** `GET /api/collection`, `POST /api/ltb` (1–3 Zeilen),
+  `PATCH /api/ltb`, `DELETE /api/ltb`. Duplikate sind erlaubt und werden über
+  `{ number, occurrence }` adressiert. Jede Zeile behält ihre freie Notiz.
+- **Auth der API:** Caddy prüft per `forward_auth` (Cookie-Gate) und setzt
+  `REMOTE_USER` am FastCGI-Request. Ohne diesen Parameter antwortet die API
+  mit 401. Schreibende Requests prüfen zusätzlich den `Origin` gegen den Host.
+- **Backup:** Volume sichern (siehe README); ein Deploy überschreibt die
+  Datenbank nicht, weil `rsync --delete` nur `dist/` und `api/` betrifft.
 - GitHub Pages bleibt deaktiviert; der vorhandene Workflow ist kein
   Datenauslieferungsweg.
 
 ## 5. Offene Punkte (als Issues)
 
-- **#2** PHP-API + SQLite, Multi-User-Auth, Schreibzugriff.
-- **#5** Sonderserien-Cover (Umsetzung beschlossen).
-- **#7** Daten aus dem öffentlichen Repo entfernen (Git-Historie, `.gitignore`,
-  Build-/Deploy-Ablauf ohne eingecheckte JSONs).
+- **#2** Eigener Auth-Dienst für mehrere Nutzer (users/sessions, `owner` pro
+  Zeile). Die PHP-API und SQLite stehen bereits; der Wechsel ist ein
+  Caddy-Block plus Container.
+- Optional: Bearbeiten/Löschen in der Oberfläche (die API kann beides schon)
+  und die Rücksynchronisation ins Google Sheet (bewusst nicht vorgesehen).

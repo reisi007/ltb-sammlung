@@ -1,0 +1,41 @@
+# LTB-API: PHP-FPM mit SQLite.
+#
+# Wird von deploy.sh nach /opt/stacks/ltb/compose.yaml installiert. Der
+# PHP-Container ist nur im Docker-Netz `webnet` erreichbar; Caddy spricht ihn
+# per FastCGI an und setzt nach der Anmeldung `Remote-User`.
+#
+# Der Quellcode liegt unter /home/webadmin/websites/ltb-api (nicht im
+# Web-Root), der Seed unter /home/webadmin/websites/ltb-seed. Die Datenbank
+# lebt im Volume `ltb_ltb_data` und überlebt Deploys.
+services:
+  ltb-php:
+    image: php:8.3-fpm-alpine
+    container_name: ltb-php
+    restart: unless-stopped
+    command: >
+      sh -c "chown -R www-data:www-data /data &&
+      exec php-fpm -F"
+    environment:
+      LTB_DB: /data/ltb.sqlite
+      LTB_SEED: /srv/seed/collection.json
+    volumes:
+      - /home/webadmin/websites/ltb-api:/srv/api:ro
+      - /home/webadmin/websites/ltb-seed:/srv/seed:ro
+      - ltb_data:/data
+    mem_limit: 128m
+    cpus: 0.50
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 9000 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - webnet
+
+volumes:
+  ltb_data:
+
+networks:
+  webnet:
+    external: true

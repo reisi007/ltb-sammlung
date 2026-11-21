@@ -13,3 +13,6 @@ src/locales/**/messages.mjs
 # atomaren Writes und künftige Ableitungen draußen. Nur die Beispiele gelten.
 /src/data/*
 !/src/data/*.example.json
+
+# Codegraph-Index ist lokal (codegraph init).
+.codegraph/

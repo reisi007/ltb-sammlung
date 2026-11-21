@@ -9,6 +9,9 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 REMOTE="root@reisinger.pictures:/home/webadmin/websites/ltb.all-the.rest/"
+API_REMOTE="root@reisinger.pictures:/home/webadmin/websites/ltb-api/"
+SEED_REMOTE="root@reisinger.pictures:/home/webadmin/websites/ltb-seed/"
+STACK_DIR="/opt/stacks/ltb"
 SSH_OPTS="-o ControlMaster=auto -o ControlPath=/tmp/ssh-sync-%r@%h:%p -o ControlPersist=60"
 
 DRY_RUN=false
@@ -50,9 +53,11 @@ if [[ "$DRY_RUN" == true ]]; then
   echo "Dry run: kein Upload, kein Remote-Zugriff. Geplante Schritte:"
   echo "  1. BASE_PATH=/ npm run build"
   echo "  2. Pruefung: dist/index.html nicht leer und mit /assets/-Pfaden"
-  echo "  3. ssh root@reisinger.pictures 'mkdir -p …/ltb.all-the.rest'"
+  echo "  3. ssh root@reisinger.pictures 'mkdir -p …/ltb.all-the.rest …/ltb-api …/ltb-seed /opt/stacks/ltb'"
   echo "  4. rsync ${RSYNC_FLAGS[*]} ./dist/ $REMOTE"
-  echo "  5. curl -o /dev/null -w '%{http_code}' https://ltb.all-the.rest/ (erwartet 302 auf /login.html)"
+  echo "  5. rsync ./api/ $API_REMOTE und src/data/collection.json nach $SEED_REMOTE"
+  echo "  6. compose.yaml nach $STACK_DIR und 'docker compose up -d'"
+  echo "  7. curl / (302 auf /login.html), /api/health (ok) und /api/collection (401)"
   exit 0
 fi
 
@@ -81,12 +86,28 @@ if ! grep -q 'src="/assets/' dist/index.html; then
   exit 1
 fi
 
-echo "Bereite Zielverzeichnis auf dem Host vor ..."
+echo "Bereite Zielverzeichnisse auf dem Host vor ..."
 ssh $SSH_OPTS -T root@reisinger.pictures \
-  "mkdir -p /home/webadmin/websites/ltb.all-the.rest && chown 1002:webgroup /home/webadmin/websites/ltb.all-the.rest && chmod 2755 /home/webadmin/websites/ltb.all-the.rest"
+  "mkdir -p /home/webadmin/websites/ltb.all-the.rest /home/webadmin/websites/ltb-api /home/webadmin/websites/ltb-seed $STACK_DIR &&
+   chown 1002:webgroup /home/webadmin/websites/ltb.all-the.rest /home/webadmin/websites/ltb-api /home/webadmin/websites/ltb-seed &&
+   chmod 2755 /home/webadmin/websites/ltb.all-the.rest /home/webadmin/websites/ltb-api /home/webadmin/websites/ltb-seed"
 
 echo "Spiegle dist/ nach $REMOTE ..."
 "$RSYNC_BIN" ./dist/ "$REMOTE" "${RSYNC_FLAGS[@]}" --rsh="ssh $SSH_OPTS"
+
+echo "Spiegle die API nach $API_REMOTE ..."
+"$RSYNC_BIN" ./api/ "$API_REMOTE" --archive --delete --delete-after \
+  --chown=1002:webgroup --chmod=D2755,F644 --rsh="ssh $SSH_OPTS"
+
+echo "Spiegle den Seed nach $SEED_REMOTE ..."
+"$RSYNC_BIN" ./src/data/collection.json "$SEED_REMOTE" --archive \
+  --chown=1002:webgroup --chmod=F644 --rsh="ssh $SSH_OPTS"
+
+echo "Installiere den PHP-Stack und starte ihn ..."
+"$RSYNC_BIN" ./deploy/ltb-stack/compose.yaml "root@reisinger.pictures:$STACK_DIR/compose.yaml" \
+  --archive --chmod=F644 --rsh="ssh $SSH_OPTS"
+ssh $SSH_OPTS -T root@reisinger.pictures \
+  "cd $STACK_DIR && docker compose up -d --remove-orphans"
 
 echo "Pruefe, ob die Seite antwortet (ohne Cookie erwartet: 302 auf /login.html) ..."
 response="$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 15 https://ltb.all-the.rest/ || true)"
@@ -124,5 +145,38 @@ while IFS= read -r asset; do
   fi
 done <<< "$login_assets"
 echo "Login-Assets ohne Cookie erreichbar: $(printf '%s\n' "$login_assets" | wc -l | tr -d ' ')"
+
+echo "Pruefe die API ..."
+health="$(curl -s --max-time 15 https://ltb.all-the.rest/api/health || true)"
+if [[ "$health" != *'"status":"ok"'* ]]; then
+  echo "FEHLER: /api/health antwortet nicht wie erwartet: ${health:-keine Antwort}" >&2
+  exit 1
+fi
+collection_status="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 https://ltb.all-the.rest/api/collection || true)"
+if [[ "$collection_status" != "401" ]]; then
+  echo "FEHLER: /api/collection ohne Cookie antwortet mit HTTP $collection_status statt 401." >&2
+  exit 1
+fi
+echo "API gesund, Sammlung ohne Cookie geschuetzt (401)"
+
+if [[ -n "${LTB_USER:-}" && -n "${LTB_PASSWORD:-}" ]]; then
+  cookie_jar="$(mktemp)"
+  trap 'rm -f "$cookie_jar"' EXIT
+  login_status="$(curl -s -o /dev/null -w '%{http_code}' -c "$cookie_jar" \
+    -X POST -H 'content-type: application/json' \
+    -d "{\"username\":\"$LTB_USER\",\"password\":\"$LTB_PASSWORD\"}" \
+    https://ltb.all-the.rest/api/login || true)"
+  if [[ "$login_status" != "200" ]]; then
+    echo "FEHLER: Login ueber die API antwortet mit HTTP $login_status." >&2
+    exit 1
+  fi
+  read_status="$(curl -s -o /dev/null -w '%{http_code}' -b "$cookie_jar" \
+    https://ltb.all-the.rest/api/collection || true)"
+  if [[ "$read_status" != "200" ]]; then
+    echo "FEHLER: /api/collection mit Cookie antwortet mit HTTP $read_status." >&2
+    exit 1
+  fi
+  echo "Login und Sammlung mit Cookie: HTTP 200"
+fi
 
 echo "Deploy abgeschlossen: https://ltb.all-the.rest/"

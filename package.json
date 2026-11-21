@@ -1,6 +1,6 @@
 {
   "name": "ltb-sammlung",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Persönliche Übersicht meiner Lustiges-Taschenbuch-Sammlung",
@@ -26,11 +26,14 @@
     "i18n:extract": "lingui extract",
     "i18n:compile": "lingui compile",
     "icons": "node scripts/generate-icons.mjs",
-    "data:check": "node scripts/ensure-data.mjs --check"
+    "data:check": "node scripts/ensure-data.mjs --check",
+    "test:api": "php api/tests/run.php",
+    "lint:api": "php -l api/index.php && php -l api/src/Store.php && php -l api/src/Validation.php && php -l api/tests/run.php"
   },
   "dependencies": {
     "@lingui/core": "6.12.0",
     "@lingui/react": "6.12.0",
+    "jsqr": "^1.4.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
