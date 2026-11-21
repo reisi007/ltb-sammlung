@@ -14,6 +14,13 @@ GitHub Pages wird über `.github/workflows/deploy.yml` ausgeliefert, sobald im
 Repo unter **Pages** die Quelle **GitHub Actions** eingestellt ist. Ohne diese
 Einstellung ist `https://reisi007.github.io/ltb-sammlung/` nicht erreichbar.
 
+## Entscheidungen
+
+Dauerhafte Architektur-, Auth- und Cover-Entscheidungen stehen in
+[`docs/decisions.md`](docs/decisions.md). Kurzfassung: Der Code ist öffentlich,
+Sammlung und Katalog sind privat; die App hat eine eigene Login-Seite und wird
+auf Multi-User-Betrieb ausgelegt; GitHub Pages bleibt deaktiviert.
+
 ## Schnellstart
 
 Voraussetzung: Node.js ≥ 22.18 und npm.
