@@ -40,8 +40,12 @@ import {
   type CollectionRepository,
   type SeriesResult,
 } from "./lib/repository";
-
-type TabId = "ltb" | "specials" | "donaldDuck" | "panzerknacker";
+import {
+  buildViewPath,
+  parseViewState,
+  type TabId,
+  type ViewState,
+} from "./lib/url-state";
 
 type LoadState =
   | { status: "loading" }
@@ -200,9 +204,14 @@ interface CollectionViewProps {
   locale: Locale;
   query: string;
   activeTab: TabId;
+  showMissing: boolean;
+  series: string | null;
   canWrite: boolean;
   onQueryChange: (query: string) => void;
   onTabChange: (tab: TabId) => void;
+  onShowMissingChange: (showMissing: boolean) => void;
+  onSeriesSelect: (series: string) => void;
+  onSelectNumber: (number: number) => void;
   onAddVolumes: (items: readonly AddItem[]) => Promise<void>;
   onAddSeries: (
     series: string,
@@ -217,9 +226,14 @@ function CollectionView({
   locale,
   query,
   activeTab,
+  showMissing,
+  series,
   canWrite,
   onQueryChange,
   onTabChange,
+  onShowMissingChange,
+  onSeriesSelect,
+  onSelectNumber,
   onAddVolumes,
   onAddSeries,
   onRememberIsbn,
@@ -255,6 +269,18 @@ function CollectionView({
   const exactEntry =
     exactNumber === null ? null : getCatalogEntry(catalog, exactNumber);
   const numericQuery = isNumberQuery(query);
+
+  // Ein Deep Link mit ?series=… (und Zurück/Vorwärts) springt nach dem
+  // Rendern zur passenden Sektion.
+  useEffect(() => {
+    if (activeTab !== "specials" || series === null) {
+      return;
+    }
+
+    document
+      .getElementById(`serie-${series}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [activeTab, series]);
 
   const filteredLtb = collection.ltb
     .filter((row) =>
@@ -313,8 +339,7 @@ function CollectionView({
   ];
 
   function selectNumber(number: number) {
-    onQueryChange(String(number));
-    onTabChange("ltb");
+    onSelectNumber(number);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -620,6 +645,8 @@ function CollectionView({
           <NumberGrid
             maxNumber={gridMaxNumber}
             ownedNumbers={ownedNumbers}
+            showMissing={showMissing}
+            onShowMissingChange={onShowMissingChange}
             onSelect={selectNumber}
           />
 
@@ -701,6 +728,7 @@ function CollectionView({
                   type="button"
                   className="btn btn-xs btn-outline"
                   onClick={() => {
+                    onSeriesSelect(series.name);
                     document
                       .getElementById(`serie-${series.name}`)
                       ?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -885,9 +913,48 @@ export default function App({
 }: AppProps) {
   const [locale, setLocale] = useState<Locale>(initialLocale);
   const [switchingLocale, setSwitchingLocale] = useState(false);
-  const [query, setQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<TabId>("ltb");
+  const [view, setView] = useState<ViewState>(() =>
+    parseViewState(window.location.pathname, window.location.search),
+  );
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
+
+  function updateView(patch: Partial<ViewState>, mode: "push" | "replace") {
+    const next: ViewState = { ...view, ...patch };
+
+    if (patch.tab !== undefined && next.tab !== "specials") {
+      next.series = null;
+    }
+
+    setView(next);
+    window.history[mode === "push" ? "pushState" : "replaceState"](
+      null,
+      "",
+      buildViewPath(next),
+    );
+  }
+
+  useEffect(() => {
+    // Die Wurzel und unbekannte Pfade werden beim Laden auf den kanonischen
+    // Pfad des Default-Tabs korrigiert; die Auswahl in der Query bleibt erhalten.
+    const current = `${window.location.pathname}${window.location.search}`;
+    const canonical = buildViewPath(
+      parseViewState(window.location.pathname, window.location.search),
+    );
+
+    if (current !== canonical) {
+      window.history.replaceState(null, "", canonical);
+    }
+  }, []);
+
+  useEffect(() => {
+    function handlePopState() {
+      setView(parseViewState(window.location.pathname, window.location.search));
+    }
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = locale;
@@ -1080,11 +1147,20 @@ export default function App({
             collection={loadState.collection}
             catalog={loadState.catalog}
             locale={locale}
-            query={query}
-            activeTab={activeTab}
+            query={view.query}
+            activeTab={view.tab}
+            showMissing={view.showMissing}
+            series={view.series}
             canWrite={loadState.repository.capabilities.write}
-            onQueryChange={setQuery}
-            onTabChange={setActiveTab}
+            onQueryChange={(query) => updateView({ query }, "replace")}
+            onTabChange={(tab) => updateView({ tab }, "push")}
+            onShowMissingChange={(showMissing) =>
+              updateView({ showMissing }, "replace")
+            }
+            onSeriesSelect={(series) => updateView({ series }, "push")}
+            onSelectNumber={(number) =>
+              updateView({ query: String(number), tab: "ltb" }, "push")
+            }
             onAddVolumes={handleAddVolumes}
             onAddSeries={handleAddSeries}
             onRememberIsbn={handleRememberIsbn}

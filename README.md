@@ -42,6 +42,31 @@ Deploy.
 Der Dev-Server läuft wegen des GitHub-Pages-Basispfads unter
 <http://localhost:5173/ltb-sammlung/>.
 
+## Ansicht in der URL
+
+Die URL ist die Quelle der Wahrheit für die Ansicht. Dadurch lässt sich jede
+Ansicht teilen und nach Reload oder Zurück/Vorwärts wiederherstellen. Das
+Pfadsegment bestimmt den Bereich, die Query-Parameter die Auswahl:
+
+| URL | Bedeutung |
+| --- | --- |
+| `/ltb` | LTB-Übersicht (Standard) |
+| `/specials` | Sonderserien |
+| `/donald-duck` | Donald Duck & Co |
+| `/panzerknacker` | Panzerknacker & Co |
+| `?q=219` | Suche nach Nummer oder Titel, auch mehrere Nummern oder Freitext |
+| `?series=Young` | gewählte Sonderserie (nur in `/specials`) |
+| `?missing=1` | fehlende Nummern in der Nummern-Übersicht anzeigen |
+
+Die Parameter stehen immer in der Reihenfolge `q`, `series`, `missing`, z. B.
+`/specials?q=219&series=Young&missing=1`. Unbekannte und leere Werte werden
+verworfen; beim Laden wird eine abweichende URL auf diese kanonische Form
+korrigiert. Tabwechsel und die Auswahl einer Nummer bzw. Reihe schreiben einen
+neuen History-Eintrag, das Tippen im Suchfeld und der Umschalter „Fehlende
+anzeigen“ ersetzen den aktuellen Eintrag. Das Basispfad-Präfix aus
+`vite.config.ts` (`/ltb-sammlung/` im Dev-Server, `/` im Deploy) wird
+automatisch berücksichtigt. Die Anmeldung über `/login.html` bleibt unverändert.
+
 ## Scripts
 
 | Script | Zweck |

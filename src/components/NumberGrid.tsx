@@ -1,19 +1,21 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useState } from "react";
 
 interface NumberGridProps {
   maxNumber: number;
   ownedNumbers: ReadonlySet<number>;
+  showMissing: boolean;
+  onShowMissingChange: (showMissing: boolean) => void;
   onSelect: (number: number) => void;
 }
 
 export function NumberGrid({
   maxNumber,
   ownedNumbers,
+  showMissing,
+  onShowMissingChange,
   onSelect,
 }: NumberGridProps) {
   const { t } = useLingui();
-  const [showMissing, setShowMissing] = useState(false);
   const numbers = Array.from({ length: maxNumber }, (_, index) => index + 1).filter(
     (number) => showMissing || ownedNumbers.has(number),
   );
@@ -37,7 +39,7 @@ export function NumberGrid({
                 type="checkbox"
                 className="toggle toggle-xs"
                 checked={showMissing}
-                onChange={(event) => setShowMissing(event.target.checked)}
+                onChange={(event) => onShowMissingChange(event.target.checked)}
               />
             </label>
             <span className="badge badge-sm">
