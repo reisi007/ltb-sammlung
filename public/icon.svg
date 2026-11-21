@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="LTB">
+  <rect width="512" height="512" rx="112" fill="#123c4a" />
+  <rect x="96" y="150" width="18" height="212" rx="9" fill="#f4e4c1" opacity="0.55" />
+  <text
+    x="270"
+    y="312"
+    text-anchor="middle"
+    font-family="Helvetica, Arial, sans-serif"
+    font-size="168"
+    font-weight="700"
+    letter-spacing="4"
+    fill="#f4e4c1"
+  >LTB</text>
+</svg>

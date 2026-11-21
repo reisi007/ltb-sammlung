@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <link rel="icon" href="%BASE_URL%icon.svg" type="image/svg+xml" />
+    <link
+      rel="apple-touch-icon"
+      href="%BASE_URL%icons/apple-touch-icon.png"
+    />
+    <meta name="theme-color" content="#123c4a" />
+    <title>Anmelden – LTB-Sammlung</title>
+  </head>
+  <body class="min-h-dvh bg-base-200">
+    <main class="flex min-h-dvh items-center justify-center p-4">
+      <div class="card w-full max-w-sm bg-base-100 shadow-xl">
+        <div class="card-body gap-5">
+          <div class="flex flex-col items-center gap-2 text-center">
+            <div
+              class="flex size-16 items-center justify-center rounded-2xl bg-primary text-xl font-bold tracking-widest text-primary-content"
+              aria-hidden="true"
+            >
+              LTB
+            </div>
+            <h1 class="card-title">LTB-Sammlung</h1>
+            <p class="text-sm opacity-70">
+              Bitte anmelden, um die Sammlung zu öffnen.
+            </p>
+          </div>
+
+          <form id="login-form" class="flex flex-col gap-4">
+            <fieldset class="fieldset">
+              <legend class="fieldset-legend">Benutzername</legend>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                class="input w-full"
+                autocomplete="username"
+                autocapitalize="none"
+                spellcheck="false"
+                required
+              />
+            </fieldset>
+
+            <fieldset class="fieldset">
+              <legend class="fieldset-legend">Passwort</legend>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                class="input w-full"
+                autocomplete="current-password"
+                required
+              />
+            </fieldset>
+
+            <button id="submit" type="submit" class="btn btn-primary">
+              Anmelden
+            </button>
+          </form>
+
+          <div id="error" class="alert alert-error hidden" role="alert">
+            <span>Zugangsdaten falsch. Bitte erneut versuchen.</span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script type="module" src="/src/login.ts"></script>
+  </body>
+</html>

@@ -7,8 +7,8 @@ Nummern-Übersicht (1 bis zur höchsten vorhandenen Nummer), getrennte Tabs für
 Sonderserien, Donald Duck und Panzerknacker & Co sowie eine Suche nach Nummer
 oder Titel.
 
-Live: <https://ltb.all-the.rest/> (VPS, Basic-Auth mit dem Konto von
-`code.all-the.rest`).
+Live: <https://ltb.all-the.rest/> (VPS, Login über dasselbe Konto wie
+`code.all-the.rest` — eigene Login-Seite, Cookie statt Browser-Basic-Dialog).
 
 GitHub Pages wird über `.github/workflows/deploy.yml` ausgeliefert, sobald im
 Repo unter **Pages** die Quelle **GitHub Actions** eingestellt ist. Ohne diese
@@ -149,8 +149,9 @@ Bearbeiten ist in diesem Prototyp bewusst **nicht** implementiert. Der Button
   keine UI-Strings – Lingui bleibt die einzige i18n-Quelle.
 - SQLite liegt in einem Docker-Volume außerhalb des Web-Roots. Das Google Sheet
   bleibt die initiale Datenquelle (Seed), danach ist SQLite die Wahrheit.
-- Caddy macht die Authentifizierung per `basic_auth` mit demselben User und
-  bcrypt-Hash wie `code.all-the.rest`; PHP vertraut nur dem von Caddy gesetzten
+- Caddy macht die Authentifizierung per `forward_auth` gegen den bestehenden
+  `code-auth`-Sidecar (Cookie-Gate mit eigener `/login.html`); das ist dasselbe
+  Konto wie `code.all-the.rest`. PHP vertraut nur dem von Caddy gesetzten
   `X-Auth-User`-Header. Schreibende Requests brauchen einen Custom-Header als
   CSRF-Schutz.
 - Deployment nach dem Muster des Projekts `form2email`: PHP-FPM-Container im
@@ -230,8 +231,17 @@ Repository muss `BASE_PATH` entsprechend gesetzt werden.
 `/home/webadmin/websites/ltb.all-the.rest/` auf `root@reisinger.pictures`. Im
 `proxy-stack` ist dieser Pfad read-only unter `/srv/websites/ltb.all-the.rest`
 eingehängt; der Caddy-Block liegt im Repo `~/dev/caddyfile/Caddyfile` und nutzt
-das `spa`-Snippet. Der Zugang ist `basic_auth` mit demselben User und Hash wie
-`code.all-the.rest`. `./deploy.sh --dry-run` zeigt die Schritte ohne Upload.
+das `spa`-Snippet. Der Zugang läuft über `forward_auth` gegen den
+`code-auth`-Sidecar: `/login.html` ist die eigene Anmeldeseite, `/api/login`,
+`/api/me` und `/api/logout` gehen an denselben Dienst. Damit gilt dasselbe Konto
+wie für `code.all-the.rest`, aber ohne Browser-Basic-Dialog.
+`./deploy.sh --dry-run` zeigt die Schritte ohne Upload.
+
+Die App ist eine Progressive Web App (`vite-plugin-pwa`): `manifest.webmanifest`,
+Service Worker und Icons unter `public/icons/`. Die Icons sind ein eigenes,
+bewusst einfaches Design („LTB" auf einfarbigem Grund) und kopieren kein
+offizielles Logo. Cover werden nicht mitgeliefert; der Service Worker cached sie
+nur zur Laufzeit (30 Tage, maximal 900 Einträge).
 
 Voraussetzung: GNU-rsync ≥ 3.1 (`brew install rsync`) und ein SSH-Key für den
 Host. Das Script legt das Zielverzeichnis bei Bedarf an (`1002:webgroup`, Modus

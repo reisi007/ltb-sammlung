@@ -82,9 +82,9 @@ ssh $SSH_OPTS -T root@reisinger.pictures \
 echo "Spiegle dist/ nach $REMOTE ..."
 "$RSYNC_BIN" ./dist/ "$REMOTE" "${RSYNC_FLAGS[@]}" --rsh="ssh $SSH_OPTS"
 
-echo "Pruefe, ob die Seite antwortet (ohne Zugangsdaten erwartet: 401) ..."
+echo "Pruefe, ob die Seite antwortet (ohne Cookie erwartet: 302 auf /login.html) ..."
 status="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 https://ltb.all-the.rest/ || true)"
-if [[ "$status" != "401" && "$status" != "200" ]]; then
+if [[ "$status" != "302" && "$status" != "401" && "$status" != "200" ]]; then
   echo "FEHLER: https://ltb.all-the.rest/ antwortet mit HTTP $status." >&2
   exit 1
 fi
