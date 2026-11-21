@@ -167,10 +167,22 @@ final class Store
         if (is_file($this->seedPath)) {
             $raw = file_get_contents($this->seedPath);
             $seed = $raw === false ? null : json_decode($raw, true);
-            $fromSeed = is_array($seed) ? ($seed['meta']['syncedAt'] ?? null) : null;
+            $seedMeta = is_array($seed) && is_array($seed['meta'] ?? null)
+                ? $seed['meta']
+                : [];
+            $fromSeed = $seedMeta['syncedAt'] ?? null;
 
             if (is_string($fromSeed) && trim($fromSeed) !== '') {
-                $syncedAt = $fromSeed;
+                $seedTime = strtotime($fromSeed);
+                $seededTime = strtotime($seededAt);
+
+                // Ein spaeter neu gesyncter Seed darf den Zeitpunkt nicht
+                // nach vorne ziehen: die Datenbank entstand zum Seed-Lauf.
+                $syncedAt = $seedTime !== false
+                    && $seededTime !== false
+                    && $seedTime > $seededTime
+                        ? $seededAt
+                        : $fromSeed;
             }
         }
 

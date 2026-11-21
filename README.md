@@ -171,7 +171,8 @@ QR-/Barcode-Scan:
 - Text: eine Nummer pro Zeile (`219`, `#219`, `LTB 219`), bis zu drei Zeilen.
   Im **Sonderserien**-Dialog dürfen mehrere Nummern durch Komma getrennt
   eingegeben werden (`1, 2, 3`).
-- Scan: Kamera mit `BarcodeDetector` (QR, Code 128) oder `jsQR` als Fallback.
+- Scan: Kamera mit `BarcodeDetector` (QR, Code 128; EAN wird gelesen, aber
+  als Nummer abgelehnt) oder `jsQR` als Fallback.
   Aus dem Payload wird die Nummer gelesen; fremde Inhalte werden abgelehnt
   statt geraten. Die gedruckte **ISBN/EAN** eines Bandes enthält die
   LTB-Nummer nicht und wird deshalb abgelehnt (kein Nummernraten); ein
@@ -206,7 +207,7 @@ Technik:
   ```bash
   docker run --rm -v ltb_ltb_data:/data -v "$PWD":/backup \
     php:8.3-fpm-alpine php -r \
-    '$p=new PDO("sqlite:/data/ltb.sqlite"); $p->exec("VACUUM INTO \"/backup/ltb-db-".date("Y-m-d").".sqlite\"");'
+    '$p=new PDO("sqlite:/data/ltb.sqlite"); $f="/backup/ltb-db-".date("Y-m-d-His").".sqlite"; $p->exec("VACUUM INTO \"$f\"");'
   ```
 - **Deployment**: `deploy.sh` spiegelt `api/` nach
   `/home/webadmin/websites/ltb-api`, den Seed nach

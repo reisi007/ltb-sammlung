@@ -11,6 +11,10 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e/screenshots",
   testMatch: "**/*.spec.ts",
+  // Dieser Lauf geht gegen die Live-Instanz und darf nur lesen. Schreibende
+  // Ablaufe bekommen einen eigenen Namen (mutation-*.spec.ts) und werden hier
+  // bewusst ignoriert.
+  testIgnore: "**/mutation-*.spec.ts",
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,
