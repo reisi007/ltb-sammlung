@@ -20,7 +20,7 @@
     "pretypecheck": "node scripts/ensure-data.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "verify": "npm run typecheck && npm run test && npm run build",
+    "verify": "npm run typecheck && npm run test && npm run build && node scripts/assert-no-collection-data.mjs dist",
     "sync:data": "node scripts/sync-collection.mjs",
     "sync:catalog": "node scripts/sync-catalog.mjs",
     "i18n:extract": "lingui extract",
@@ -28,7 +28,7 @@
     "icons": "node scripts/generate-icons.mjs",
     "data:check": "node scripts/ensure-data.mjs --check",
     "test:api": "php api/tests/run.php",
-    "lint:api": "php -l api/index.php && php -l api/src/Store.php && php -l api/src/Validation.php && php -l api/tests/run.php",
+    "lint:api": "php -l api/index.php && php -l api/src/Api.php && php -l api/src/Store.php && php -l api/src/Validation.php && php -l api/bin/user.php && php -l api/bin/vacuum.php && php -l api/tests/run.php",
     "test:screenshots": "playwright test -c playwright.screenshots.config.ts"
   },
   "dependencies": {

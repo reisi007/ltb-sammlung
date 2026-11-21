@@ -164,3 +164,98 @@ function validate_series_numbers(mixed $numbers): array
 
     return $validated;
 }
+
+
+function isbn10_to_13(string $isbn10): string
+{
+    $core = '978' . substr($isbn10, 0, 9);
+    $sum = 0;
+
+    for ($index = 0; $index < 12; $index++) {
+        $sum += (int) $core[$index] * ($index % 2 === 0 ? 1 : 3);
+    }
+
+    return $core . (string) ((10 - $sum % 10) % 10);
+}
+
+function isbn13_is_valid(string $isbn13): bool
+{
+    if (preg_match('/^\d{13}$/', $isbn13) !== 1) {
+        return false;
+    }
+
+    $sum = 0;
+
+    for ($index = 0; $index < 12; $index++) {
+        $sum += (int) $isbn13[$index] * ($index % 2 === 0 ? 1 : 3);
+    }
+
+    return (int) $isbn13[12] === (10 - $sum % 10) % 10;
+}
+
+function isbn10_is_valid(string $isbn10): bool
+{
+    if (preg_match('/^\d{9}[\dX]$/', $isbn10) !== 1) {
+        return false;
+    }
+
+    $sum = 0;
+
+    for ($index = 0; $index < 10; $index++) {
+        $character = $isbn10[$index];
+        $value = $character === 'X' ? 10 : (int) $character;
+        $sum += $value * (10 - $index);
+    }
+
+    return $sum % 11 === 0;
+}
+
+/**
+ * Nimmt ISBN-10 oder ISBN-13 (mit oder ohne Bindestriche) und gibt immer die
+ * ISBN-13 zurueck — das ist auch das Format des gedruckten EAN-Barcodes.
+ */
+function validate_isbn(mixed $value): string
+{
+    if (!is_string($value)) {
+        throw new ValidationError(422, 'isbn muss Text sein.');
+    }
+
+    $normalized = strtoupper(preg_replace('/[^0-9Xx]/', '', $value) ?? '');
+
+    if (preg_match('/^\d{9}[\dX]$/', $normalized) === 1) {
+        if (!isbn10_is_valid($normalized)) {
+            throw new ValidationError(422, 'isbn hat eine ungueltige Pruefziffer.');
+        }
+
+        return isbn10_to_13($normalized);
+    }
+
+    if (preg_match('/^\d{13}$/', $normalized) === 1) {
+        if (!isbn13_is_valid($normalized)) {
+            throw new ValidationError(422, 'isbn hat eine ungueltige Pruefziffer.');
+        }
+
+        return $normalized;
+    }
+
+    throw new ValidationError(422, 'isbn muss eine ISBN-10 oder ISBN-13 sein.');
+}
+
+
+function validate_username(mixed $value): string
+{
+    if (!is_string($value)) {
+        throw new ValidationError(422, 'username muss Text sein.');
+    }
+
+    $normalized = strtolower(trim($value));
+
+    if (preg_match('/^[a-z0-9._-]{1,40}$/', $normalized) !== 1) {
+        throw new ValidationError(
+            422,
+            'username muss 1 bis 40 Zeichen aus a-z, 0-9, Punkt, Unterstrich oder Bindestrich sein.'
+        );
+    }
+
+    return $normalized;
+}

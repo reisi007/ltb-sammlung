@@ -25,6 +25,8 @@ export interface SpecialSeries {
 export interface Collection {
   meta: CollectionMeta;
   ltb: CollectionRow[];
+  /** Gelernte ISBN-13 (normalisiert) => LTB-Nummer, aus dem Scanner. */
+  isbnMap: Record<string, number>;
   specials: SpecialSeries[];
   donaldDuck: CollectionRow[];
   panzerknacker: CollectionRow[];
@@ -40,6 +42,8 @@ export interface CatalogEntry {
   title: string | null;
   coverUrl: string | null;
   coverUrlOfficial: string | null;
+  /** ISBN-13 des Bandes, wenn die Quelle sie liefert. */
+  isbn: string | null;
 }
 
 export interface SeriesCatalogEntry {
@@ -153,12 +157,41 @@ function parseSpecials(value: unknown): SpecialSeries[] {
   });
 }
 
+function parseIsbnMap(value: unknown): Record<string, number> {
+  if (value === undefined || value === null) {
+    return {};
+  }
+
+  // PHP kodiert eine leere Map als [] — das ist leer, keine Liste.
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return {};
+    }
+
+    throw new Error("Datenfeld „isbnMap“ ist eine Liste statt einer Zuordnung.");
+  }
+
+  const raw = requireRecord(value, "isbnMap");
+  const mapping: Record<string, number> = {};
+
+  for (const [isbn, number] of Object.entries(raw)) {
+    if (typeof number !== "number" || !Number.isSafeInteger(number) || number < 1) {
+      throw new Error(`Datenfeld „isbnMap.${isbn}“ ist keine gültige Nummer.`);
+    }
+
+    mapping[isbn] = number;
+  }
+
+  return mapping;
+}
+
 export function parseCollection(value: unknown): Collection {
   const collection = requireRecord(value, "collection");
 
   return {
     meta: parseCollectionMeta(collection.meta),
     ltb: parseRows(collection.ltb, "ltb"),
+    isbnMap: parseIsbnMap(collection.isbnMap),
     specials: parseSpecials(collection.specials),
     donaldDuck: parseRows(collection.donaldDuck, "donaldDuck"),
     panzerknacker: parseRows(collection.panzerknacker, "panzerknacker"),
@@ -199,6 +232,10 @@ export function parseCatalog(value: unknown): Catalog {
       title: readNullableString("title"),
       coverUrl: readNullableString("coverUrl"),
       coverUrlOfficial: readNullableString("coverUrlOfficial"),
+      isbn:
+        item.isbn === undefined || item.isbn === null
+          ? null
+          : requireString(item.isbn, `catalog.entries[${index}].isbn`),
     };
   });
 
@@ -254,12 +291,6 @@ export function parseCatalog(value: unknown): Catalog {
     entries,
     series,
   };
-}
-
-export async function loadCollection(): Promise<Collection> {
-  const module = await import("../data/collection.json");
-
-  return parseCollection(module.default);
 }
 
 export async function loadCatalogData(): Promise<Catalog> {

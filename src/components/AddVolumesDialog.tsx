@@ -11,6 +11,7 @@ import {
 } from "../lib/add";
 import type { Catalog, Collection } from "../lib/collection";
 import { getCatalogEntry, getRowsForNumber } from "../lib/collection";
+import { resolveScan } from "../lib/isbn";
 import { QrScanner } from "./QrScanner";
 
 interface AddRowState {
@@ -26,6 +27,7 @@ interface AddVolumesDialogProps {
   initialNumbers?: readonly number[];
   onClose: () => void;
   onAdd: (items: readonly AddItem[]) => Promise<void>;
+  onRememberIsbn: (isbn: string, number: number) => Promise<void>;
 }
 
 let nextRowId = 1;
@@ -62,11 +64,16 @@ export function AddVolumesDialog({
   initialNumbers,
   onClose,
   onAdd,
+  onRememberIsbn,
 }: AddVolumesDialogProps) {
   const { t } = useLingui();
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const [rows, setRows] = useState<AddRowState[]>(() => [createRow()]);
   const [scanRow, setScanRow] = useState<number | null>(null);
+  const [pendingIsbn, setPendingIsbn] = useState<string | null>(null);
+  const [isbnTarget, setIsbnTarget] = useState<number | null>(null);
+  const [isbnNumber, setIsbnNumber] = useState("");
+  const [isbnSaving, setIsbnSaving] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<DialogError | null>(null);
 
@@ -80,6 +87,10 @@ export function AddVolumesDialog({
     if (open && !dialog.open) {
       setRows([createRow()]);
       setScanRow(null);
+      setPendingIsbn(null);
+      setIsbnTarget(null);
+      setIsbnNumber("");
+      setIsbnSaving(false);
       setError(null);
       setSaving(false);
 
@@ -117,6 +128,47 @@ export function AddVolumesDialog({
   const invalidRow = parsed.find(
     (entry) => entry.row.value.trim() !== "" && entry.number === null,
   );
+
+  async function assignIsbn() {
+    if (pendingIsbn === null) {
+      return;
+    }
+
+    const number = extractNumberFromScan(isbnNumber);
+
+    if (number === null) {
+      setError({
+        kind: "text",
+        message: t`Bitte eine gültige LTB-Nummer eingeben.`,
+      });
+      return;
+    }
+
+    setIsbnSaving(true);
+    setError(null);
+
+    try {
+      await onRememberIsbn(pendingIsbn, number);
+      setRows((current) =>
+        current.map((row) =>
+          row.id === isbnTarget ? { ...row, value: String(number) } : row,
+        ),
+      );
+      setPendingIsbn(null);
+      setIsbnTarget(null);
+      setIsbnNumber("");
+    } catch (assignError) {
+      setError({
+        kind: "text",
+        message:
+          assignError instanceof Error
+            ? assignError.message
+            : String(assignError),
+      });
+    } finally {
+      setIsbnSaving(false);
+    }
+  }
 
   async function handleSubmit() {
     if (invalidRow !== undefined) {
@@ -182,29 +234,83 @@ export function AddVolumesDialog({
           <QrScanner
             onStop={() => setScanRow(null)}
             onDetected={(payload) => {
-              const number = extractNumberFromScan(payload);
+              const target = scanRow;
+              const result = resolveScan(payload, catalog, collection.isbnMap);
+              setScanRow(null);
 
-              if (number === null) {
+              if (result.kind === "unknown-isbn") {
+                setPendingIsbn(result.isbn);
+                setIsbnTarget(target);
+                setError(null);
+                return;
+              }
+
+              if (result.kind === "invalid") {
                 setError({
                   kind: "text",
-                  message: t`Im Scan war keine LTB-Nummer erkennbar.`,
+                  message: t`Im Scan war keine LTB-Nummer oder ISBN erkennbar.`,
                 });
-                setScanRow(null);
                 return;
               }
 
               setRows((current) =>
                 current.map((row) =>
-                  row.id === scanRow ? { ...row, value: String(number) } : row,
+                  row.id === target
+                    ? { ...row, value: String(result.number) }
+                    : row,
                 ),
               );
-              setScanRow(null);
               setError(null);
             }}
           />
         ) : (
-          <form
-            id="add-volumes-form"
+          <>
+            {pendingIsbn !== null && (
+              <div className="alert alert-info mb-4 flex-col items-start gap-2">
+                <span>
+                  <Trans>
+                    ISBN {pendingIsbn} ist noch nicht zugeordnet. Welche
+                    LTB-Nummer ist das?
+                  </Trans>
+                </span>
+                <div className="flex w-full items-end gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    className="input input-sm w-full"
+                    placeholder={t`z. B. 219`}
+                    value={isbnNumber}
+                    onChange={(event) => setIsbnNumber(event.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-primary"
+                    disabled={isbnSaving || isbnNumber.trim() === ""}
+                    onClick={() => {
+                      assignIsbn().catch(() => {
+                        // Fehler landet bereits im Dialogzustand.
+                      });
+                    }}
+                  >
+                    {isbnSaving && (
+                      <span
+                        className="loading loading-spinner loading-xs"
+                        aria-hidden="true"
+                      />
+                    )}
+                    <Trans>Zuordnen</Trans>
+                  </button>
+                </div>
+                <p className="text-xs opacity-70">
+                  <Trans>
+                    Die Zuordnung wird gespeichert und beim nächsten Scan
+                    wiederverwendet.
+                  </Trans>
+                </p>
+              </div>
+            )}
+            <form
+              id="add-volumes-form"
             className="flex flex-col gap-4"
             onSubmit={(event) => {
               event.preventDefault();
@@ -354,7 +460,8 @@ export function AddVolumesDialog({
                 </span>
               </div>
             )}
-          </form>
+            </form>
+          </>
         )}
 
         <div className="modal-action">

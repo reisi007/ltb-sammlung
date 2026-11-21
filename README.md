@@ -1,14 +1,14 @@
 # LTB-Sammlung
 
-Persönliche, statische Übersicht meiner Lustiges-Taschenbuch-Sammlung.
-Die App liest einen Snapshot des Google Sheets und zeigt pro Sammlungszeile
-Cover, Bandtitel und die freie Notiz „Enthalten in“. Zusätzlich gibt es eine
-Nummern-Übersicht (1 bis zur höchsten vorhandenen Nummer), getrennte Tabs für
-Sonderserien, Donald Duck und Panzerknacker & Co sowie eine Suche nach Nummer
-oder Titel.
+Persönliche Übersicht meiner Lustiges-Taschenbuch-Sammlung. Die App liest die
+Sammlung über `/api/collection` aus SQLite und zeigt pro Zeile Cover, Bandtitel
+und die freie Notiz „Enthalten in“. Zusätzlich gibt es eine Nummern-Übersicht
+(1 bis zur höchsten vorhandenen Nummer), getrennte Tabs für Sonderserien,
+Donald Duck und Panzerknacker & Co sowie eine Suche nach Nummer oder Titel.
 
-Live: <https://ltb.all-the.rest/> (VPS, Login über dasselbe Konto wie
-`code.all-the.rest` — eigene Login-Seite, Cookie statt Browser-Basic-Dialog).
+Live: <https://ltb.all-the.rest/> (VPS, eigene Login-Seite und eigene
+Benutzerverwaltung in SQLite — nicht mehr das Konto von
+`code.all-the.rest`).
 
 GitHub Pages ist **deaktiviert** und kein Auslieferungsweg für die Sammlung.
 Die CI (`.github/workflows/ci.yml`) prüft nur Build und Gates.
@@ -18,9 +18,9 @@ Die CI (`.github/workflows/ci.yml`) prüft nur Build und Gates.
 Dauerhafte Architektur-, Auth- und Cover-Entscheidungen stehen in
 [`docs/decisions.md`](docs/decisions.md). Kurzfassung: Der Code ist öffentlich,
 Sammlung und Katalog liegen nicht im Repository; die App hat eine eigene
-Login-Seite und wird auf Multi-User-Betrieb ausgelegt; GitHub Pages bleibt
-deaktiviert. Wichtig: Das Google Sheet ist per Link lesbar — der Login schützt
-die Oberfläche, nicht die Sheet-Daten.
+Login-Seite mit mehreren Benutzern; GitHub Pages bleibt deaktiviert. Wichtig:
+Das Google Sheet ist per Link lesbar — der Login schützt die Oberfläche und die
+API, **nicht** die Sheet-Daten. Wer den Sheet-Link hat, braucht die App nicht.
 
 ## Schnellstart
 
@@ -186,29 +186,45 @@ QR-/Barcode-Scan:
 Technik:
 
 - **Frontend**: `CollectionRepository` (`src/lib/repository.ts`) liest
-  `/api/collection` und fällt ohne API auf den lokalen Snapshot zurück (dann nur
-  lesend). `WritableCollectionRepository` schreibt über `POST/PATCH/DELETE
-  /api/ltb`.
+  `/api/collection`. Im Produktionsbuild gibt es **keinen** lokalen Snapshot:
+  ohne Session leitet die App nach `/login.html`, ein Serverfehler wird als
+  Fehler angezeigt. Nur im Dev-Betrieb (`import.meta.env.DEV`) fällt sie ohne
+  API auf `src/data/collection.json` zurück (dann nur lesend), damit lokale
+  Arbeit ohne PHP-Stack möglich ist. `WritableCollectionRepository` schreibt
+  über `POST/PATCH/DELETE /api/ltb`.
 - **API**: `api/index.php` (PHP 8, PDO/SQLite). Routen:
   `GET /api/collection`, `POST /api/ltb` (1–3 Zeilen), `PATCH /api/ltb`,
   `DELETE /api/ltb`, `GET /api/health`. Duplikate werden über
   `{ number, occurrence }` adressiert (0 = erste Zeile mit dieser Nummer).
-- **Auth**: Caddy macht `forward_auth` gegen den `code-auth`-Sidecar und setzt
-  bei FastCGI `REMOTE_USER`; die API antwortet ohne diesen Parameter mit 401.
+- **Auth**: Benutzer und Sessions liegen in SQLite (`users`, `sessions`); die
+  API antwortet ohne gültiges Session-Cookie mit 401. Jede Zeile, jede Reihe
+  und jede ISBN-Zuordnung gehört einem Benutzer (`owner`). Benutzerverwaltung
+  per CLI: `docker exec -i ltb-php php /srv/api/bin/user.php add <name>`.
   Der PHP-Container ist nur im Docker-Netz `webnet` erreichbar.
 - **CSRF**: SameSite=Lax-Cookie plus Origin-Prüfung gegen den eigenen Host bei
   schreibenden Requests.
 - **Datenbank**: SQLite im Volume `ltb_ltb_data` (Host:
   `/var/lib/docker/volumes/ltb_ltb_data/`). Beim ersten Start wird sie aus
-  `src/data/collection.json` geseedet; danach ist sie die Quelle. Backup
-  WAL-sicher mit einer konsistenten Kopie (nicht die laufenden Dateien
-  tarren):
+  `src/data/collection.json` geseedet; danach ist sie die Quelle. Die
+  Sicherung läuft als Cronjob (`deploy/ltb-vacuum.sh`) und schreibt
+  `/var/backups/ltb/ltb-YYYY-MM-DD.sqlite.gz` (14 Tage, zusätzlich per
+  `rclone` nach `pCloud:Backup/strato-v2/db/ltb/`). `VACUUM INTO` erzeugt
+  eine konsistente Kopie, auch während geschrieben wird; die laufenden
+  Dateien werden nie getarrt.
+
+  Installation auf dem VPS (einmalig, Datei liegt im Repo):
 
   ```bash
-  docker run --rm -v ltb_ltb_data:/data -v "$PWD":/backup \
-    php:8.3-fpm-alpine php -r \
-    '$p=new PDO("sqlite:/data/ltb.sqlite"); $f="/backup/ltb-db-".date("Y-m-d-His").".sqlite"; $p->exec("VACUUM INTO \"$f\"");'
+  scp deploy/ltb-vacuum.sh root@reisinger.pictures:/usr/local/bin/ltb-vacuum.sh
+  ssh root@reisinger.pictures 'chmod 755 /usr/local/bin/ltb-vacuum.sh; \
+    (crontab -l 2>/dev/null; \
+     echo "23 3 * * * /usr/local/bin/ltb-vacuum.sh >> /var/log/ltb-vacuum.log 2>&1") | crontab -'
   ```
+
+  Wiederherstellung: Datei entpacken, PHP-Container stoppen, Entpacktes als
+  `ltb.sqlite` in das Volume `ltb_ltb_data` legen, dabei `ltb.sqlite-wal` und
+  `ltb.sqlite-shm` entfernen, Container starten. Die Sicherung ist eine
+  vollständige SQLite-Datenbank.
 - **Deployment**: `deploy.sh` spiegelt `api/` nach
   `/home/webadmin/websites/ltb-api`, den Seed nach
   `/home/webadmin/websites/ltb-seed`, installiert
@@ -284,11 +300,11 @@ Der Basispfad ist in `vite.config.ts` auf `/ltb-sammlung/` gesetzt und kann per
 `/home/webadmin/websites/ltb.all-the.rest/` auf `root@reisinger.pictures`. Im
 `proxy-stack` ist dieser Pfad read-only unter `/srv/websites/ltb.all-the.rest`
 eingehängt; der Caddy-Block liegt im Repo `~/dev/caddyfile/Caddyfile` und nutzt
-das `spa`-Snippet. Der Zugang läuft über `forward_auth` gegen den
-`code-auth`-Sidecar: `/login.html` ist die eigene Anmeldeseite, ihre Assets
-werden wie die Seite selbst ohne Cookie ausgeliefert (die Datenchunks der App
-nicht), `/api/login`, `/api/me` und `/api/logout` gehen an denselben Dienst. Damit gilt dasselbe Konto
-wie für `code.all-the.rest`, aber ohne Browser-Basic-Dialog.
+das `spa`-Snippet. Die Anmeldung macht die PHP-API selbst
+(`/api/login`, `/api/me`, `/api/logout`, Sessions in SQLite); `code-auth` und
+`forward_auth` sind für diese Seite nicht mehr beteiligt. `/login.html` und die
+App-Hülle sind ohne Cookie erreichbar, alle Daten unter `/api/*` antworten
+ohne gültige Session mit 401. Mehrere Personen haben getrennte Sammlungen.
 `./deploy.sh --dry-run` zeigt die Schritte ohne Upload. Der PHP-Stack
 (`php:8.3-fpm-alpine`, 128 MB Memory-Limit) läuft als eigenes Compose-Projekt
 `ltb`; die Caddy-Konfiguration routet `/api/*` per FastCGI dorthin.
@@ -308,8 +324,9 @@ Host. Das Script legt das Zielverzeichnis bei Bedarf an (`1002:webgroup`, Modus
 `2755`), prüft vor dem Upload, dass `dist/index.html`, `dist/login.html`,
 `dist/sw.js` und `dist/manifest.webmanifest` vorhanden sind und der Build den
 Root-Basispfad `/assets/` verwendet. Nach dem Sync testet er
-`https://ltb.all-the.rest/` (ohne Cookie erwartet: `302` auf `/login.html`) und
-lädt `/login.html` samt der dort referenzierten Assets ohne Cookie (je `200`).
+`https://ltb.all-the.rest/` (App-Hülle, `200`) und lädt `/login.html` samt der
+dort referenzierten Assets ohne Cookie (je `200`). Danach legt er den Benutzer
+aus `LTB_USER` an, falls er fehlt, meldet sich an und prüft die SQLite-Daten.
 
 ### UI-Review (Screenshots)
 
@@ -330,6 +347,13 @@ hotlinkt die Quellen. Rechte liegen bei den jeweiligen Rechteinhabern. Das ist
 ein privates Fan-Projekt und kein offizielles Angebot von Disney, Egmont oder
 Google.
 
+## Security- und System-Review
+
+Der finale Review (Auth, Sessions, Mandantentrennung, HTTP-Härtung, Backup)
+steht in [`docs/security-review.md`](docs/security-review.md). Ergebnis: keine
+offenen kritischen oder hohen Befunde; Body-Limit und Login-Timing wurden im
+Review gehärtet.
+
 ## Version
 
 Aktuell ist **1.0.0**. Die Version steht in `package.json` und wird beim Build
@@ -340,8 +364,8 @@ als `__APP_VERSION__` in den Footer geschrieben.
 - **Bearbeiten/Löschen in der Oberfläche**: Die API kann `PATCH` und `DELETE`
   bereits; die UI nutzt bisher nur das Hinzufügen. Als Nächstes: Notiz ändern
   und einzelne Exemplare entfernen.
-- **Mehrere Nutzer**: `code-auth` ist Einzelnutzer. Der geplante eigene
-  Auth-Dienst bringt `users`/`sessions` und einen `owner`-Bezug pro Zeile
-  (`docs/decisions.md`).
+- **Mehrere Nutzer**: `users`/`sessions` und `owner` pro Zeile sind umgesetzt
+  (#10). Offen bleibt nur eine Oberfläche für die Benutzerverwaltung; heute
+  läuft sie per CLI.
 - **Synchronisation**: Das Sheet bleibt Seed. Eine Rücksynchronisation der
   SQLite-Daten ins Sheet ist nicht vorgesehen.

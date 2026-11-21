@@ -92,6 +92,21 @@ describe("parseCollection", () => {
     );
   });
 
+  it("akzeptiert eine leere ISBN-Map als []", () => {
+    expect(parseCollection({ ...collectionFixture, isbnMap: [] }).isbnMap).toEqual(
+      {},
+    );
+  });
+
+  it("liest eine ISBN-Zuordnung", () => {
+    expect(
+      parseCollection({
+        ...collectionFixture,
+        isbnMap: { "9783770402199": 219 },
+      }).isbnMap,
+    ).toEqual({ "9783770402199": 219 });
+  });
+
   it("prüft die Metadaten", () => {
     expect(() =>
       parseCollection({ ...collectionFixture, meta: { sheetId: 1 } }),
@@ -106,6 +121,7 @@ describe("parseCatalog", () => {
       title: null,
       coverUrl: null,
       coverUrlOfficial: "https://example.test/official-219.jpg",
+      isbn: null,
     });
   });
 

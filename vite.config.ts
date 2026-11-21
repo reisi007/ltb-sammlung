@@ -62,8 +62,11 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
+        // Alte Precache-Eintraege (z. B. ein frueher gebuendelter
+        // Sammlungs-Snapshot) werden beim Aktivieren entfernt.
+        cleanupOutdatedCaches: true,
         navigateFallback: `${base}index.html`,
-        navigateFallbackDenylist: [/\/api\//, /\/login\.html$/],
+        navigateFallbackDenylist: [/\/api\//, /\/login\.html/],
         runtimeCaching: [
           {
             // Cover nur zur Laufzeit cachen; es wird nichts mitgeliefert.

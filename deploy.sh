@@ -4,7 +4,8 @@
 # =============================================================================
 # Das Ziel ist der Host-Pfad /home/webadmin/websites/ltb.all-the.rest, der im
 # proxy-stack read-only unter /srv/websites/ltb.all-the.rest gemountet wird.
-# Auth übernimmt Caddy (forward_auth gegen den code-auth-Sidecar).
+# Auth macht die PHP-API selbst (Benutzer + Sessions in SQLite). Caddy liefert
+# nur statische Dateien und reicht /api/* per FastCGI an PHP weiter.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -62,6 +63,16 @@ if [[ "$DRY_RUN" == true ]]; then
   exit 0
 fi
 
+if [[ -z "${LTB_USER:-}" || -z "${LTB_PASSWORD:-}" ]]; then
+  echo "FEHLER: LTB_USER und LTB_PASSWORD sind Pflicht." >&2
+  echo "        Der Deploy legt den Benutzer an und prueft die Datenbank." >&2
+  exit 1
+fi
+if [[ ! "$LTB_USER" =~ ^[a-z0-9._-]{1,40}$ ]]; then
+  echo "FEHLER: LTB_USER darf nur a-z, 0-9, Punkt, Unterstrich und Bindestrich enthalten." >&2
+  exit 1
+fi
+
 echo "Pruefe, dass echte Daten vorhanden sind (keine Platzhalter) ..."
 node scripts/ensure-data.mjs --check
 
@@ -84,6 +95,14 @@ fi
 
 if ! grep -q 'src="/assets/' dist/index.html; then
   echo "FEHLER: dist/index.html referenziert keine /assets/-Datei — kein Deploy." >&2
+  exit 1
+fi
+
+# Private Sammlungsdaten duerfen nie als oeffentliches Asset im Build landen:
+# die App-Huelle ist ohne Login erreichbar, nur /api/* ist geschuetzt. Der
+# Check ist formatunabhaengig (auch minifizierte/unquotierte Snapshots).
+if ! node scripts/assert-no-collection-data.mjs dist; then
+  echo "FEHLER: dist/ enthaelt Sammlungsdaten (Snapshot). Kein Deploy." >&2
   exit 1
 fi
 
@@ -110,15 +129,24 @@ echo "Installiere den PHP-Stack und starte ihn ..."
 ssh $SSH_OPTS -T root@reisinger.pictures \
   "cd $STACK_DIR && docker compose up -d --remove-orphans"
 
-echo "Pruefe, ob die Seite antwortet (ohne Cookie erwartet: 302 auf /login.html) ..."
-response="$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 15 https://ltb.all-the.rest/ || true)"
-read -r status location <<< "$response" || true
-if [[ "$status" != "302" || "$location" != "https://ltb.all-the.rest/login.html" ]]; then
-  echo "FEHLER: https://ltb.all-the.rest/ antwortet mit HTTP ${status:-keine Antwort} (Ziel: ${location:-keins})." >&2
-  echo "        Erwartet wird 302 auf /login.html; alles andere heisst: Auth ist offen." >&2
+echo "Lege den Benutzer an, falls er noch fehlt ..."
+users="$(ssh $SSH_OPTS -T root@reisinger.pictures \
+  "docker exec -i ltb-php php /srv/api/bin/user.php list" 2>/dev/null || true)"
+if ! printf '%s\n' "$users" | grep -Fxq "$LTB_USER"; then
+  printf '%s\n' "$LTB_PASSWORD" | ssh $SSH_OPTS -T root@reisinger.pictures \
+    "docker exec -i ltb-php php /srv/api/bin/user.php add $LTB_USER"
+  echo "Benutzer $LTB_USER angelegt."
+else
+  echo "Benutzer $LTB_USER existiert bereits (Passwort bleibt unveraendert)."
+fi
+
+echo "Pruefe, ob die App-Huelle antwortet ..."
+response="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 https://ltb.all-the.rest/ || true)"
+if [[ "$response" != "200" ]]; then
+  echo "FEHLER: https://ltb.all-the.rest/ antwortet mit HTTP ${response:-keine Antwort}." >&2
   exit 1
 fi
-echo "HTTP $status -> $location"
+echo "HTTP $response (App-Huelle; Daten bleiben hinter der API-Auth)"
 
 # Die Login-Seite muss ohne Cookie ausgeliefert werden, inklusive ihres
 # eigenen CSS/JS — sonst ist die Anmeldung fuer neue Besucher kaputt.
@@ -160,47 +188,52 @@ if [[ "$collection_status" != "401" ]]; then
 fi
 echo "API gesund, Sammlung ohne Cookie geschuetzt (401)"
 
-if [[ -z "${LTB_USER:-}" || -z "${LTB_PASSWORD:-}" ]]; then
-  echo "FEHLER: LTB_USER und LTB_PASSWORD sind Pflicht." >&2
-  echo "        Ohne Login kann der Deploy nicht pruefen, ob die Datenbank Daten hat." >&2
-  exit 1
-fi
-
-if [[ -n "${LTB_USER:-}" && -n "${LTB_PASSWORD:-}" ]]; then
-  cookie_jar="$(mktemp)"
-  trap 'rm -f "$cookie_jar"' EXIT
-  login_status="$(curl -s -o /dev/null -w '%{http_code}' -c "$cookie_jar" \
+cookie_jar="$(mktemp)"
+trap 'rm -f "$cookie_jar"' EXIT
+login_body="$(node -e '
+console.log(JSON.stringify({ username: process.argv[1], password: process.argv[2] }));
+' "$LTB_USER" "$LTB_PASSWORD")"
+login_status="$(curl -s -o /dev/null -w '%{http_code}' -c "$cookie_jar" \
     -X POST -H 'content-type: application/json' \
-    -d "{\"username\":\"$LTB_USER\",\"password\":\"$LTB_PASSWORD\"}" \
+    -d "$login_body" \
     https://ltb.all-the.rest/api/login || true)"
-  if [[ "$login_status" != "200" ]]; then
+if [[ "$login_status" != "200" ]]; then
     echo "FEHLER: Login ueber die API antwortet mit HTTP $login_status." >&2
     exit 1
-  fi
-  collection_body="$(mktemp)"
-  read_status="$(curl -s -o "$collection_body" -w '%{http_code}' -b "$cookie_jar" \
+fi
+collection_body="$(mktemp)"
+read_status="$(curl -s -o "$collection_body" -w '%{http_code}' -b "$cookie_jar" \
     https://ltb.all-the.rest/api/collection || true)"
-  if [[ "$read_status" != "200" ]]; then
+if [[ "$read_status" != "200" ]]; then
     echo "FEHLER: /api/collection mit Cookie antwortet mit HTTP $read_status." >&2
     rm -f "$collection_body"
     exit 1
-  fi
+fi
 
-  # Eine leere oder nicht geseedete Datenbank darf keinen gruenen Deploy geben.
-  # Bewusst mit node (ohnehin Voraussetzung) statt eines weiteren Tools.
-  ltb_rows="$(node -e '
+# Eine leere oder nicht geseedete Datenbank darf keinen gruenen Deploy geben.
+# Bewusst mit node (ohnehin Voraussetzung) statt eines weiteren Tools.
+ltb_rows="$(node -e '
 const fs = require("node:fs");
 const data = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
 const rows = data.meta?.source === "sqlite" ? data.ltb?.length ?? 0 : 0;
 console.log(rows);
 ' "$collection_body" 2>/dev/null || echo 0)"
-  rm -f "$collection_body"
+rm -f "$collection_body"
 
-  if [[ "${ltb_rows:-0}" -lt 1 ]]; then
-    echo "FEHLER: Die API liefert keine LTB-Zeilen (Quelle/Seed pruefen)." >&2
+# Die Datenbank als Ganzes pruefen, nicht nur die Zeilen des Login-Benutzers:
+# im Mehrbenutzerbetrieb darf ein neuer Benutzer leer starten, waehrend die
+# Sammlung des Admins gefuellt ist.
+db_rows="$(ssh $SSH_OPTS -T root@reisinger.pictures \
+    "docker exec -i ltb-php php -r 'echo (int) (new PDO(\"sqlite:/data/ltb.sqlite\"))->query(\"SELECT COUNT(*) FROM rows\")->fetchColumn();'" \
+    2>/dev/null || true)"
+if [[ ! "${db_rows:-}" =~ ^[0-9]+$ ]]; then
+    echo "FEHLER: Datenbankzaehlung fehlgeschlagen (Ausgabe: ${db_rows:-leer})." >&2
     exit 1
-  fi
-  echo "Login und Sammlung mit Cookie: HTTP 200, ${ltb_rows} LTB-Zeilen"
 fi
+if (( db_rows < 1 )); then
+    echo "FEHLER: Die Datenbank enthaelt keine Zeilen (Quelle/Seed pruefen)." >&2
+    exit 1
+fi
+echo "Login und Sammlung mit Cookie: HTTP 200, ${ltb_rows} LTB-Zeilen (DB gesamt: ${db_rows})"
 
 echo "Deploy abgeschlossen: https://ltb.all-the.rest/"

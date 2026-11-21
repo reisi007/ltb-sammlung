@@ -1,12 +1,12 @@
 import type { Collection } from "./collection";
-import { loadCollection, parseCollection } from "./collection";
+import { parseCollection } from "./collection";
 
 /**
  * Datenzugriff für die Oberfläche.
  *
  * Die App kennt nur dieses Interface. Auf dem Server erfüllt die PHP-API den
- * Vertrag (Lesen und Schreiben); ohne API fällt die App auf den lokalen
- * Snapshot zurück und ist dann nur lesend.
+ * Vertrag (Lesen und Schreiben). Im Dev-Betrieb gibt es ohne API einen
+ * lesenden Snapshot; der Produktionsbuild enthält bewusst keinen.
  */
 export interface CollectionRepository {
   readonly id: string;
@@ -46,6 +46,7 @@ export interface WritableCollectionRepository extends CollectionRepository {
   removeLtbRow(key: CollectionRowKey): Promise<void>;
   addSeries(name: string, numbers: readonly number[]): Promise<SeriesResult>;
   addSeriesNumbers(name: string, numbers: readonly number[]): Promise<SeriesResult>;
+  rememberIsbn(isbn: string, number: number): Promise<void>;
 }
 
 export function isWritableRepository(
@@ -54,16 +55,16 @@ export function isWritableRepository(
   return repository.capabilities.write;
 }
 
-export function createSnapshotRepository(): CollectionRepository {
-  return {
-    id: "snapshot",
-    capabilities: { write: false },
-    load: loadCollection,
-  };
+/** Fehler der HTTP-API inklusive Status, damit die App 401 erkennen kann. */
+export class HttpError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "HttpError";
+  }
 }
-
-export const snapshotRepository: CollectionRepository =
-  createSnapshotRepository();
 
 async function requestJson(
   path: string,
@@ -81,6 +82,16 @@ async function requestJson(
   });
 
   if (!response.ok) {
+    // Auch nach dem initialen Laden: eine abgelaufene Session beim Schreiben
+    // soll zur Anmeldung fuehren, nicht nur eine Dialogfehlermeldung zeigen.
+    if (
+      response.status === 401 &&
+      typeof window !== "undefined" &&
+      !window.location.pathname.startsWith("/login.html")
+    ) {
+      window.location.replace("/login.html");
+    }
+
     let message = `HTTP ${response.status}`;
 
     try {
@@ -93,7 +104,7 @@ async function requestJson(
       // Antwort ohne JSON — der Status reicht als Meldung.
     }
 
-    throw new Error(message);
+    throw new HttpError(message, response.status);
   }
 
   return response.json();
@@ -144,6 +155,12 @@ export function createHttpRepository(baseUrl = ""): WritableCollectionRepository
         skipped: typeof payload.skipped === "number" ? payload.skipped : 0,
       };
     },
+    async rememberIsbn(isbn, number) {
+      await requestJson(`${baseUrl}/api/isbn`, {
+        method: "PUT",
+        body: JSON.stringify({ isbn, number }),
+      });
+    },
     async addSeriesNumbers(name, numbers) {
       const payload = (await requestJson(`${baseUrl}/api/series/volume`, {
         method: "POST",
@@ -165,9 +182,10 @@ export interface InitialData {
 }
 
 /**
- * Lädt die Sammlung über die API und fällt ohne API auf den Snapshot zurück.
- * Der Rückgabewert enthält das Repository, damit die Oberfläche weiß, ob sie
- * schreiben darf.
+ * Lädt die Sammlung über die API. Nur im Dev-Betrieb fällt sie ohne API auf
+ * den lokalen Snapshot zurück; im Produktionsbuild wird der Fehler
+ * weitergereicht (401 → Anmeldung, sonst Fehlerbildschirm). Der Rückgabewert
+ * enthält das Repository, damit die Oberfläche weiß, ob sie schreiben darf.
  */
 export async function loadInitialData(): Promise<InitialData> {
   const http = createHttpRepository();
@@ -176,7 +194,17 @@ export async function loadInitialData(): Promise<InitialData> {
     const collection = await http.load();
 
     return { repository: http, collection };
-  } catch {
-    return { repository: snapshotRepository, collection: await loadCollection() };
+  } catch (error) {
+    // Nur im Dev-Betrieb ohne API auf den lokalen Snapshot zurückfallen.
+    // Im Produktions-Build wäre der Snapshot ein öffentliches Asset und
+    // würde die private Sammlung ohne Login ausliefern; dort muss ein 401
+    // zur Anmeldung und ein 5xx als Fehler sichtbar werden.
+    if (!import.meta.env.DEV) {
+      throw error;
+    }
+
+    const { loadSnapshotRepository } = await import("./snapshot");
+
+    return loadSnapshotRepository();
   }
 }

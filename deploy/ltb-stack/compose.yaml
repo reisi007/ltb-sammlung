@@ -2,7 +2,8 @@
 #
 # Wird von deploy.sh nach /opt/stacks/ltb/compose.yaml installiert. Der
 # PHP-Container ist nur im Docker-Netz `webnet` erreichbar; Caddy spricht ihn
-# per FastCGI an und setzt nach der Anmeldung `Remote-User`.
+# per FastCGI an. Benutzer und Sessions liegen in derselben SQLite-Datenbank
+# wie die Sammlung; ein externer Auth-Sidecar ist nicht mehr noetig.
 #
 # Der Quellcode liegt unter /home/webadmin/websites/ltb-api (nicht im
 # Web-Root), der Seed unter /home/webadmin/websites/ltb-seed. Die Datenbank
@@ -14,7 +15,7 @@ services:
     restart: unless-stopped
     command: >
       sh -c "chown -R www-data:www-data /data &&
-      exec php-fpm -F -d expose_php=0"
+      exec php-fpm -F -d expose_php=0 -d display_errors=0 -d log_errors=1"
     environment:
       LTB_DB: /data/ltb.sqlite
       LTB_SEED: /srv/seed/collection.json

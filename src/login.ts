@@ -16,13 +16,17 @@ if (
   throw new Error("Login-Formular unvollständig.");
 }
 
-fetch("/api/me", { cache: "no-store" })
-  .then((response) => {
-    if (response.ok) {
-      window.location.replace("/");
-    }
-  })
-  .catch(() => {});
+const switching = new URLSearchParams(window.location.search).has("switch");
+
+if (!switching) {
+  fetch("/api/me", { cache: "no-store" })
+    .then((response) => {
+      if (response.ok) {
+        window.location.replace("/");
+      }
+    })
+    .catch(() => {});
+}
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -40,6 +44,13 @@ form.addEventListener("submit", async (event) => {
     });
 
     if (!response.ok) {
+      const text = error.querySelector("span") ?? error;
+      text.textContent =
+        response.status === 429
+          ? "Zu viele Anmeldeversuche. Bitte später erneut versuchen."
+          : response.status >= 500
+            ? "Serverfehler. Bitte später erneut versuchen."
+            : "Zugangsdaten falsch. Bitte erneut versuchen.";
       error.classList.remove("hidden");
       submit.disabled = false;
       return;

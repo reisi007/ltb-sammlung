@@ -34,6 +34,7 @@ import {
   type Collection,
 } from "./lib/collection";
 import {
+  HttpError,
   isWritableRepository,
   loadInitialData,
   type CollectionRepository,
@@ -61,9 +62,10 @@ interface HeaderProps {
   locale: Locale;
   switching: boolean;
   onLocaleChange: (locale: Locale) => void;
+  onLogout?: () => void;
 }
 
-function Header({ locale, switching, onLocaleChange }: HeaderProps) {
+function Header({ locale, switching, onLocaleChange, onLogout }: HeaderProps) {
   const { t } = useLingui();
 
   return (
@@ -103,6 +105,15 @@ function Header({ locale, switching, onLocaleChange }: HeaderProps) {
           </label>
           {switching && (
             <span className="loading loading-spinner loading-sm" aria-hidden="true" />
+          )}
+          {onLogout !== undefined && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={onLogout}
+            >
+              <Trans>Abmelden</Trans>
+            </button>
           )}
         </div>
       </div>
@@ -201,6 +212,7 @@ interface CollectionViewProps {
     series: string,
     numbers: readonly number[],
   ) => Promise<SeriesResult>;
+  onRememberIsbn: (isbn: string, number: number) => Promise<void>;
 }
 
 function CollectionView({
@@ -214,6 +226,7 @@ function CollectionView({
   onTabChange,
   onAddVolumes,
   onAddSeries,
+  onRememberIsbn,
 }: CollectionViewProps) {
   const { t } = useLingui();
   const stats = getStats(collection);
@@ -864,6 +877,7 @@ function CollectionView({
         initialNumbers={addNumbers}
         onClose={() => setAddOpen(false)}
         onAdd={handleAdd}
+        onRememberIsbn={onRememberIsbn}
       />
 
       <AddSeriesDialog
@@ -919,12 +933,21 @@ export default function App({
         }
       })
       .catch((error: unknown) => {
-        if (!cancelled) {
-          setLoadState({
-            status: "error",
-            message: error instanceof Error ? error.message : String(error),
-          });
+        if (cancelled) {
+          return;
         }
+
+        // Ohne gültige Session führt die App zur Anmeldung, statt einen
+        // nicht behebbaren Ladefehler zu zeigen.
+        if (error instanceof HttpError && error.status === 401) {
+          window.location.replace("/login.html");
+          return;
+        }
+
+        setLoadState({
+          status: "error",
+          message: error instanceof Error ? error.message : String(error),
+        });
       });
 
     return () => {
@@ -975,6 +998,41 @@ export default function App({
     return result;
   }
 
+  async function handleRememberIsbn(isbn: string, number: number) {
+    if (loadState.status !== "ready") {
+      throw new Error("Daten sind noch nicht geladen.");
+    }
+
+    const { repository } = loadState;
+
+    if (!isWritableRepository(repository)) {
+      throw new Error("Schreiben ist ohne API nicht möglich.");
+    }
+
+    await repository.rememberIsbn(isbn, number);
+    const collection = await repository.load();
+
+    setLoadState((current) =>
+      current.status === "ready" ? { ...current, collection } : current,
+    );
+  }
+
+  async function handleLogout() {
+    try {
+      await fetch("/api/logout", {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+    } finally {
+      // ?switch=1 verhindert, dass die Login-Seite wegen einer noch
+      // gueltigen Session sofort wieder zurueckleitet. So ist ein
+      // Benutzerwechsel auch dann moeglich, wenn der Logout-Request
+      // fehlschlaegt.
+      window.location.replace("/login.html?switch=1");
+    }
+  }
+
   async function handleLocaleChange(nextLocale: Locale) {
     if (nextLocale === locale) {
       return;
@@ -998,6 +1056,16 @@ export default function App({
         locale={locale}
         switching={switchingLocale}
         onLocaleChange={handleLocaleChange}
+        onLogout={
+          loadState.status === "ready" &&
+          loadState.repository.capabilities.write
+            ? () => {
+                handleLogout().catch(() => {
+                  // Der finally-Zweig leitet in jedem Fall zur Anmeldung.
+                });
+              }
+            : undefined
+        }
       />
 
       <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-6">
@@ -1033,6 +1101,7 @@ export default function App({
             onTabChange={setActiveTab}
             onAddVolumes={handleAddVolumes}
             onAddSeries={handleAddSeries}
+            onRememberIsbn={handleRememberIsbn}
           />
         )}
       </main>

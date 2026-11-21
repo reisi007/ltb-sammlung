@@ -86,6 +86,22 @@ describe("createHttpRepository", () => {
     });
   });
 
+  it("merkt sich eine ISBN-Zuordnung", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await createHttpRepository().rememberIsbn("9783770402199", 219);
+
+    const [path, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+
+    expect(path).toBe("/api/isbn");
+    expect(init.method).toBe("PUT");
+    expect(JSON.parse(String(init.body))).toEqual({
+      isbn: "9783770402199",
+      number: 219,
+    });
+  });
+
   it("übernimmt die Fehlermeldung der API", async () => {
     vi.stubGlobal(
       "fetch",

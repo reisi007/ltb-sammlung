@@ -5,37 +5,32 @@ declare(strict_types=1);
 /**
  * JSON-API der LTB-Sammlung.
  *
- * Läuft als PHP-FPM hinter Caddy. Caddy prüft die Anmeldung per forward_auth
- * und setzt `Remote-User`; ohne diesen Header antwortet die API mit 401. Der
- * Dienst ist nur im Docker-Netz erreichbar, nicht direkt aus dem Internet.
+ * Läuft als PHP-FPM hinter Caddy. Benutzer und Sessions liegen in SQLite;
+ * jede Anfrage auf Sammlungsdaten braucht ein gültiges Session-Cookie und
+ * antwortet sonst mit 401. Der Dienst ist nur im Docker-Netz erreichbar,
+ * nicht direkt aus dem Internet.
  *
  * Routen:
+ *   POST   /api/login        anmelden (Session-Cookie)
+ *   POST   /api/logout       Session beenden
+ *   GET    /api/me           angemeldeten Benutzer lesen
  *   GET    /api/collection   Sammlung lesen
  *   POST   /api/ltb          eine bis drei LTB-Zeilen anlegen (Duplikate erlaubt)
  *   POST   /api/series       Sonderserie anlegen (optional mit 1-3 Bänden)
  *   POST   /api/series/volume  Bände zu einer Sonderserie hinzufügen
  *   DELETE /api/series/volume  Band aus einer Sonderserie entfernen
+ *   PUT    /api/isbn         ISBN einer LTB-Nummer zuordnen (Scanner)
  *   PATCH  /api/ltb          Notiz einer Zeile ändern (number + occurrence)
  *   DELETE /api/ltb          Zeile löschen (number + occurrence)
  *   GET    /api/health       Lebenszeichen ohne Daten
  */
 
-require __DIR__ . '/src/Validation.php';
-require __DIR__ . '/src/Store.php';
+// Keine Fehlerdetails im Response, auch wenn die Store-Initialisierung
+// ausserhalb von Api::dispatch() scheitert.
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
 
-function respond(int $status, array $payload): never
-{
-    http_response_code($status);
-    header('Content-Type: application/json; charset=utf-8');
-    header('Cache-Control: no-store');
-    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    exit;
-}
-
-function fail(int $status, string $message): never
-{
-    respond($status, ['error' => $message]);
-}
+require __DIR__ . '/src/Api.php';
 
 function request_method(): string
 {
@@ -49,75 +44,6 @@ function request_path(): string
     return is_string($path) ? rtrim($path, '/') : '/';
 }
 
-function read_json_body(): array
-{
-    $length = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
-
-    if ($length > 8192) {
-        throw new ValidationError(413, 'Request-Body ist zu groß.');
-    }
-
-    $handle = fopen('php://input', 'rb');
-
-    if ($handle === false) {
-        throw new ValidationError(400, 'Request-Body nicht lesbar.');
-    }
-
-    $raw = stream_get_contents($handle, 8192);
-    fclose($handle);
-
-    if ($raw === false || trim($raw) === '') {
-        throw new ValidationError(400, 'Leerer Request-Body.');
-    }
-
-    try {
-        $data = json_decode($raw, true, 64, JSON_THROW_ON_ERROR);
-    } catch (JsonException) {
-        throw new ValidationError(400, 'Request-Body ist kein gültiges JSON.');
-    }
-
-    if (!is_array($data)) {
-        throw new ValidationError(400, 'Request-Body muss ein JSON-Objekt sein.');
-    }
-
-    return $data;
-}
-
-function authenticated_user(): string
-{
-    // Caddy setzt bei FastCGI den CGI-Parameter REMOTE_USER. Nur dieser Wert
-    // zaehlt; ein HTTP-Header waere vom Client setzbar und damit kein
-    // Auth-Nachweis.
-    $user = trim((string) ($_SERVER['REMOTE_USER'] ?? ''));
-
-    if ($user === '') {
-        fail(401, 'Nicht angemeldet.');
-    }
-
-    return $user;
-}
-
-/**
- * Einfacher CSRF-Schutz: Wenn der Browser einen Origin sendet, muss er zum
- * Host passen. Zusammen mit SameSite=Lax am Auth-Cookie reicht das für eine
- * JSON-API ohne eigene Tokens.
- */
-function assert_same_origin(): void
-{
-    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-
-    if ($origin === '') {
-        return;
-    }
-
-    $originHost = parse_url($origin, PHP_URL_HOST);
-    $host = $_SERVER['HTTP_HOST'] ?? '';
-
-    if (!is_string($originHost) || $originHost !== $host) {
-        fail(403, 'Origin passt nicht zum Host.');
-    }
-}
-
 function store(): Store
 {
     $databasePath = getenv('LTB_DB') ?: '/data/ltb.sqlite';
@@ -126,125 +52,48 @@ function store(): Store
     return new Store($databasePath, $seedPath);
 }
 
-$method = request_method();
-$path = request_path();
+$length = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
+$rawBody = '';
+
+// Oberhalb des Limits wird nichts gelesen; die Route antwortet mit 413.
+// Auch ohne Content-Length (chunked) hoechstens ein Byte ueber dem Limit
+// lesen, damit ein riesiger Body keinen Speicher belegt.
+if ($length <= 8192) {
+    $rawBody = (string) file_get_contents('php://input', false, null, 0, 8193);
+
+    if ($length === 0) {
+        $length = strlen($rawBody);
+    }
+}
 
 try {
-    if ($path === '/api/health') {
-        respond(200, ['status' => 'ok']);
-    }
-
-    if (!str_starts_with($path, '/api/')) {
-        fail(404, 'Unbekannte Route.');
-    }
-
-    $user = authenticated_user();
-    $collectionStore = store();
-
-    if ($path === '/api/collection' && $method === 'GET') {
-        $collection = $collectionStore->collection();
-        $collection['meta']['user'] = $user;
-        respond(200, $collection);
-    }
-
-    if ($path === '/api/ltb' && $method === 'POST') {
-        assert_same_origin();
-        $items = validate_add_body(read_json_body());
-        $created = $collectionStore->addLtbRows($items);
-        respond(201, ['created' => count($created), 'rows' => $created]);
-    }
-
-    if ($path === '/api/ltb' && $method === 'PATCH') {
-        assert_same_origin();
-        $body = read_json_body();
-        $reference = validate_row_reference($body);
-        $item = validate_item(
-            ['number' => $reference['number'], 'containedIn' => $body['containedIn'] ?? null],
-            0
-        );
-
-        if (!$collectionStore->updateLtbRow(
-            $reference['number'],
-            $reference['occurrence'],
-            $item['containedIn']
-        )) {
-            fail(404, 'Zeile nicht gefunden.');
-        }
-
-        respond(200, ['ok' => true]);
-    }
-
-    if ($path === '/api/series' && $method === 'POST') {
-        assert_same_origin();
-        $body = read_json_body();
-        $name = validate_series_name($body['name'] ?? null);
-        // Erst validieren, dann schreiben: ein 422 darf keine leere Reihe
-        // hinterlassen.
-        $numbers = array_key_exists('numbers', $body)
-            ? validate_series_numbers($body['numbers'])
-            : null;
-        $name = $collectionStore->createSeries($name);
-        $added = 0;
-        $skipped = 0;
-
-        if ($numbers !== null) {
-            $result = $collectionStore->addSeriesNumbers($name, $numbers);
-            $added = $result['added'];
-            $skipped = $result['skipped'];
-        }
-
-        respond(201, ['name' => $name, 'added' => $added, 'skipped' => $skipped]);
-    }
-
-    if ($path === '/api/series/volume' && $method === 'POST') {
-        assert_same_origin();
-        $body = read_json_body();
-        $series = $collectionStore->findSeries(validate_series_name($body['series'] ?? null));
-
-        if ($series === null) {
-            fail(404, 'Sonderserie nicht gefunden.');
-        }
-
-        $result = $collectionStore->addSeriesNumbers(
-            $series,
-            validate_series_numbers($body['numbers'] ?? null)
-        );
-        respond(201, ['series' => $series, 'added' => $result['added'], 'skipped' => $result['skipped']]);
-    }
-
-    if ($path === '/api/series/volume' && $method === 'DELETE') {
-        assert_same_origin();
-        $body = read_json_body();
-        $series = $collectionStore->findSeries(validate_series_name($body['series'] ?? null));
-
-        if ($series === null) {
-            fail(404, 'Sonderserie nicht gefunden.');
-        }
-
-        $numbers = validate_series_numbers([$body['number'] ?? null]);
-
-        if (!$collectionStore->removeSeriesNumber($series, $numbers[0])) {
-            fail(404, 'Band nicht gefunden.');
-        }
-
-        respond(200, ['ok' => true]);
-    }
-
-    if ($path === '/api/ltb' && $method === 'DELETE') {
-        assert_same_origin();
-        $reference = validate_row_reference(read_json_body());
-
-        if (!$collectionStore->removeLtbRow($reference['number'], $reference['occurrence'])) {
-            fail(404, 'Zeile nicht gefunden.');
-        }
-
-        respond(200, ['ok' => true]);
-    }
-
-    fail(404, 'Unbekannte Route.');
-} catch (ValidationError $error) {
-    fail($error->status, $error->getMessage());
+    $response = (new Api(store()))->dispatch(
+        request_method(),
+        request_path(),
+        $_SERVER,
+        $rawBody,
+        $length
+    );
 } catch (Throwable $error) {
     error_log('ltb-api: ' . $error->getMessage());
-    fail(500, 'Interner Fehler.');
+    http_response_code(500);
+
+    foreach (Api::HEADERS as $name => $value) {
+        header($name . ': ' . $value);
+    }
+
+    echo json_encode(['error' => 'Interner Fehler.']);
+
+    return;
 }
+
+http_response_code($response['status']);
+
+foreach ($response['headers'] as $name => $value) {
+    header($name . ': ' . $value);
+}
+
+echo json_encode(
+    Api::forJson($response['payload']),
+    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+);
