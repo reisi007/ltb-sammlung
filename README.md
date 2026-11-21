@@ -135,7 +135,9 @@ https://docs.google.com/spreadsheets/d/<SHEET_ID>/export?format=csv&gid=<GID>
 ```
 
 Genau das nutzt `sync:data`. Für dieses Projekt reicht das, weil die Seite nur
-lesend arbeitet und der Snapshot im Repository liegt.
+lesend arbeitet. Der Snapshot liegt **nicht** im Repository, sondern nur lokal
+bzw. auf dem Deploy-Host (`docs/decisions.md`); das Sheet selbst ist per Link
+lesbar.
 
 Alternativen, falls sich die Anforderungen ändern:
 
@@ -250,8 +252,9 @@ Der Basispfad ist in `vite.config.ts` auf `/ltb-sammlung/` gesetzt und kann per
 `proxy-stack` ist dieser Pfad read-only unter `/srv/websites/ltb.all-the.rest`
 eingehängt; der Caddy-Block liegt im Repo `~/dev/caddyfile/Caddyfile` und nutzt
 das `spa`-Snippet. Der Zugang läuft über `forward_auth` gegen den
-`code-auth`-Sidecar: `/login.html` ist die eigene Anmeldeseite, `/api/login`,
-`/api/me` und `/api/logout` gehen an denselben Dienst. Damit gilt dasselbe Konto
+`code-auth`-Sidecar: `/login.html` ist die eigene Anmeldeseite, ihre Assets
+werden wie die Seite selbst ohne Cookie ausgeliefert (die Datenchunks der App
+nicht), `/api/login`, `/api/me` und `/api/logout` gehen an denselben Dienst. Damit gilt dasselbe Konto
 wie für `code.all-the.rest`, aber ohne Browser-Basic-Dialog.
 `./deploy.sh --dry-run` zeigt die Schritte ohne Upload.
 
@@ -263,9 +266,11 @@ nur zur Laufzeit (30 Tage, maximal 900 Einträge).
 
 Voraussetzung: GNU-rsync ≥ 3.1 (`brew install rsync`) und ein SSH-Key für den
 Host. Das Script legt das Zielverzeichnis bei Bedarf an (`1002:webgroup`, Modus
-`2755`), prüft vor dem Upload, dass `dist/index.html` den Root-Basispfad
-`/assets/` verwendet, und testet nach dem Sync `https://ltb.all-the.rest/`
-(ohne Zugangsdaten erwartet: `401`).
+`2755`), prüft vor dem Upload, dass `dist/index.html`, `dist/login.html`,
+`dist/sw.js` und `dist/manifest.webmanifest` vorhanden sind und der Build den
+Root-Basispfad `/assets/` verwendet. Nach dem Sync testet er
+`https://ltb.all-the.rest/` (ohne Cookie erwartet: `302` auf `/login.html`) und
+lädt `/login.html` samt der dort referenzierten Assets ohne Cookie (je `200`).
 
 ## Cover-Rechte
 

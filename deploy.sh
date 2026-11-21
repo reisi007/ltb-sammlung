@@ -62,10 +62,13 @@ node scripts/ensure-data.mjs --check
 echo "Baue Prototyp mit BASE_PATH=/ ..."
 BASE_PATH=/ npm run build
 
-if [[ ! -s dist/index.html ]]; then
-  echo "FEHLER: dist/index.html fehlt oder ist leer — kein Deploy." >&2
-  exit 1
-fi
+for required in dist/index.html dist/login.html dist/sw.js dist/manifest.webmanifest; do
+  if [[ ! -s "$required" ]]; then
+    echo "FEHLER: $required fehlt oder ist leer — kein Deploy." >&2
+    echo "        rsync --delete würde die Live-Datei entfernen." >&2
+    exit 1
+  fi
+done
 
 if grep -q 'src="/ltb-sammlung/' dist/index.html; then
   echo "FEHLER: dist/ wurde mit dem GitHub-Pages-Basispfad gebaut." >&2
@@ -87,12 +90,39 @@ echo "Spiegle dist/ nach $REMOTE ..."
 
 echo "Pruefe, ob die Seite antwortet (ohne Cookie erwartet: 302 auf /login.html) ..."
 response="$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 15 https://ltb.all-the.rest/ || true)"
-read -r status location <<< "$response"
+read -r status location <<< "$response" || true
 if [[ "$status" != "302" || "$location" != "https://ltb.all-the.rest/login.html" ]]; then
-  echo "FEHLER: https://ltb.all-the.rest/ antwortet mit HTTP $status (Ziel: ${location:-keins})." >&2
+  echo "FEHLER: https://ltb.all-the.rest/ antwortet mit HTTP ${status:-keine Antwort} (Ziel: ${location:-keins})." >&2
   echo "        Erwartet wird 302 auf /login.html; alles andere heisst: Auth ist offen." >&2
   exit 1
 fi
 echo "HTTP $status -> $location"
+
+# Die Login-Seite muss ohne Cookie ausgeliefert werden, inklusive ihres
+# eigenen CSS/JS — sonst ist die Anmeldung fuer neue Besucher kaputt.
+echo "Pruefe die Login-Seite ohne Cookie ..."
+login_response="$(curl -s -o /dev/null -w '%{http_code} %{content_type}' --max-time 15 https://ltb.all-the.rest/login.html || true)"
+read -r login_status login_type <<< "$login_response" || true
+if [[ "$login_status" != "200" || "$login_type" != text/html* ]]; then
+  echo "FEHLER: /login.html antwortet mit HTTP ${login_status:-keine Antwort} (${login_type:-ohne Typ})." >&2
+  exit 1
+fi
+echo "HTTP $login_status ($login_type)"
+
+login_page="$(curl -s --max-time 15 https://ltb.all-the.rest/login.html || true)"
+login_assets="$(printf '%s' "$login_page" | grep -oE '(/assets/[^"]+|/icon\.svg|/icons/[^"]+|/manifest\.webmanifest|/registerSW\.js)' | sort -u || true)"
+if [[ -z "$login_assets" ]]; then
+  echo "FEHLER: /login.html referenziert keine Assets." >&2
+  exit 1
+fi
+while IFS= read -r asset; do
+  asset_status="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "https://ltb.all-the.rest$asset" || true)"
+  if [[ "$asset_status" != "200" ]]; then
+    echo "FEHLER: Login-Asset $asset antwortet mit HTTP $asset_status statt 200." >&2
+    echo "        Ohne Cookie waere die Login-Seite ungestylt und funktionslos." >&2
+    exit 1
+  fi
+done <<< "$login_assets"
+echo "Login-Assets ohne Cookie erreichbar: $(printf '%s\n' "$login_assets" | wc -l | tr -d ' ')"
 
 echo "Deploy abgeschlossen: https://ltb.all-the.rest/"

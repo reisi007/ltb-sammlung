@@ -512,10 +512,21 @@ async function previousCatalogStats() {
       return null;
     }
 
+    const series =
+      previous.series !== null && typeof previous.series === "object"
+        ? Object.fromEntries(
+            Object.entries(previous.series).map(([name, entries]) => [
+              name,
+              Array.isArray(entries) ? entries.length : 0,
+            ]),
+          )
+        : {};
+
     return {
       entries: previous.entries.length,
       titles: previous.entries.filter((entry) => entry.title !== null).length,
       covers: previous.entries.filter((entry) => entry.coverUrl !== null).length,
+      series,
     };
   } catch {
     return null;
@@ -611,6 +622,22 @@ async function main() {
     throw new Error(
       "Der neue Katalog hat deutlich weniger Einträge, Titel oder Cover als " +
         "der vorhandene. Es wurde nichts geschrieben.",
+    );
+  }
+
+  // Nebenreihen getrennt prüfen: eine geänderte Pagination liefert sonst
+  // stillschweigend nur die erste Seite und der Lauf gilt als erfolgreich.
+  const shrunkenSeries = Object.entries(previous?.series ?? {}).filter(
+    ([name, count]) =>
+      count > 0 &&
+      (series[name] === undefined || series[name].length < count * 0.9),
+  );
+
+  if (shrunkenSeries.length > 0) {
+    throw new Error(
+      `Diese Nebenreihen hätten deutlich weniger Bände als vorher: ` +
+        `${shrunkenSeries.map(([name, count]) => `${name} (${count})`).join(", ")}. ` +
+        "Es wurde nichts geschrieben.",
     );
   }
 

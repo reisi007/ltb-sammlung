@@ -9,5 +9,7 @@ src/locales/**/messages.js
 src/locales/**/messages.mjs
 
 # Generierte Daten — Sammlung/Katalog bleiben lokal (docs/decisions.md).
-/src/data/collection.json
-/src/data/catalog.json
+# Ganzer Ordner statt Einzeldateien: so bleiben auch die .tmp-Dateien der
+# atomaren Writes und künftige Ableitungen draußen. Nur die Beispiele gelten.
+/src/data/*
+!/src/data/*.example.json
