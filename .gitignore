@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+.DS_Store
+*.local
+
+# Lingui kompiliert Kataloge beim Build selbst; die .po-Dateien sind die Quelle.
+src/locales/**/messages.js
+src/locales/**/messages.mjs

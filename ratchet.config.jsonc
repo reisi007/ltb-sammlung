@@ -1,0 +1,81 @@
+// ratchet — Qualitätsgates für dieses Repository.
+//
+// Jede Regel zählt einen Defekt und darf sich nur in die erlaubte Richtung
+// bewegen. Neue Regeln sind Prävention und sagen das im `incident` auch so.
+[
+  {
+    "name": "quality",
+    "rules": {
+      "todo-markers": {
+        "class": "unfinished work",
+        "incident": "prevention: no TODO markers in this project yet — keep it that way; open work belongs in GitHub issues",
+        "unit": "markers",
+        "direction": "ceiling",
+        "tier": "fast",
+        "count": {
+          "command": [
+            "sh",
+            "-c",
+            "grep -rI --include='*.ts' --include='*.tsx' -o 'TODO' src scripts 2>/dev/null | wc -l | tr -d '[:space:]'"
+          ]
+        }
+      },
+      "any-types": {
+        "class": "type escape",
+        "incident": "prevention: no `any` in this project yet — the data layer is parsed from unknown with explicit guards",
+        "unit": "occurrences",
+        "direction": "ceiling",
+        "tier": "fast",
+        "count": {
+          "command": [
+            "sh",
+            "-c",
+            "grep -rIE --include='*.ts' --include='*.tsx' -o '(:[[:space:]]*any([^[:alnum:]_$]|$)|as[[:space:]]+any([^[:alnum:]_$]|$))' src scripts 2>/dev/null | wc -l | tr -d '[:space:]'"
+          ]
+        }
+      },
+      "console-log": {
+        "class": "debug output",
+        "incident": "prevention: no console.log in this project yet — the sync scripts use console.info/console.error deliberately",
+        "unit": "occurrences",
+        "direction": "ceiling",
+        "tier": "fast",
+        "count": {
+          "command": [
+            "sh",
+            "-c",
+            "grep -rI --include='*.ts' --include='*.tsx' -o 'console\\.log' src scripts 2>/dev/null | wc -l | tr -d '[:space:]'"
+          ]
+        }
+      },
+      "ts-errors": {
+        "class": "type errors",
+        "incident": "prevention: the project started with a clean strict typecheck",
+        "unit": "errors",
+        "direction": "ceiling",
+        "tier": "slow",
+        "count": {
+          "command": [
+            "sh",
+            "-c",
+            "npx tsc --noEmit --pretty false 2>&1 | grep -c 'error TS' || true"
+          ]
+        }
+      },
+      "test-count": {
+        "class": "test coverage regression",
+        "incident": "prevention: the initial prototype ships 22 unit tests; tests may only be added, not removed",
+        "unit": "tests",
+        "direction": "floor",
+        "tier": "fast",
+        "count": {
+          "command": [
+            "sh",
+            "-c",
+            "grep -rI --include='*.test.ts' --include='*.test.tsx' -oE '(^|[^[:alnum:]_$])(it|test)\\(' src scripts 2>/dev/null | wc -l | tr -d '[:space:]'"
+          ]
+        }
+      }
+    }
+  }
+]

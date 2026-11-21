@@ -1,0 +1,271 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-11-21 15:08+0100\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: de\n"
+
+#: src/App.tsx:152
+msgid "„Enthalten in“ ist eine freie Notiz pro Zeile – keine Verknüpfung."
+msgstr "„Enthalten in“ ist eine freie Notiz pro Zeile – keine Verknüpfung."
+
+#: src/components/Counts.tsx:5
+msgid "{count} Band"
+msgstr "{count} Band"
+
+#: src/components/Counts.tsx:7
+msgid "{count} Bände"
+msgstr "{count} Bände"
+
+#: src/components/Counts.tsx:13
+msgid "{count} Nummer"
+msgstr "{count} Nummer"
+
+#: src/components/Counts.tsx:15
+msgid "{count} Nummern"
+msgstr "{count} Nummern"
+
+#: src/components/Counts.tsx:28
+msgid "{count} Treffer"
+msgstr "{count} Treffer"
+
+#: src/components/Counts.tsx:21
+msgid "{count} Zeile"
+msgstr "{count} Zeile"
+
+#: src/components/Counts.tsx:23
+msgid "{count} Zeilen"
+msgstr "{count} Zeilen"
+
+#: src/App.tsx:326
+msgid "Bearbeiten folgt"
+msgstr "Bearbeiten folgt"
+
+#: src/App.tsx:382
+msgid "Bereiche"
+msgstr "Bereiche"
+
+#. placeholder {0}: formatDateTime(catalog.meta.syncedAt, locale)
+#: src/App.tsx:147
+msgid "Cover und Titel synchronisiert: {0}"
+msgstr "Cover und Titel synchronisiert: {0}"
+
+#: src/components/Cover.tsx:38
+msgid "Cover von LTB Nr. {number}"
+msgstr "Cover von LTB Nr. {number}"
+
+#: src/App.tsx:157
+msgid "Cover: © Disney/Egmont. Die Rechte liegen bei den jeweiligen Rechteinhabern; Cover werden nur verlinkt, nicht gehostet."
+msgstr "Cover: © Disney/Egmont. Die Rechte liegen bei den jeweiligen Rechteinhabern; Cover werden nur verlinkt, nicht gehostet."
+
+#: src/App.tsx:621
+msgid "Daten konnten nicht geladen werden."
+msgstr "Daten konnten nicht geladen werden."
+
+#: src/App.tsx:612
+msgid "Daten werden geladen…"
+msgstr "Daten werden geladen…"
+
+#: src/App.tsx:126
+msgid "Datenquellen"
+msgstr "Datenquellen"
+
+#: src/App.tsx:83
+msgid "Deutsch"
+msgstr "Deutsch"
+
+#: src/App.tsx:235
+#: src/App.tsx:273
+#: src/App.tsx:513
+msgid "Donald Duck"
+msgstr "Donald Duck"
+
+#: src/App.tsx:114
+msgid "Duckipedia Ausgabenliste"
+msgstr "Duckipedia Ausgabenliste"
+
+#: src/App.tsx:110
+msgid "Duckipedia Covergalerie"
+msgstr "Duckipedia Covergalerie"
+
+#: src/App.tsx:516
+#: src/App.tsx:535
+msgid "Eigene Reihe mit eigenen Nummern."
+msgstr "Eigene Reihe mit eigenen Nummern."
+
+#: src/App.tsx:465
+msgid "Eigene Reihen mit eigenen Nummern, getrennt von den LTB-Nummern."
+msgstr "Eigene Reihen mit eigenen Nummern, getrennt von den LTB-Nummern."
+
+#: src/App.tsx:84
+msgid "Englisch"
+msgstr "Englisch"
+
+#: src/components/LtbCard.tsx:26
+msgid "Enthalten in"
+msgstr "Enthalten in"
+
+#: src/components/NumberGrid.tsx:32
+msgid "fehlt"
+msgstr "fehlt"
+
+#: src/App.tsx:106
+msgid "Google Sheet"
+msgstr "Google Sheet"
+
+#: src/App.tsx:367
+msgid "Habe ich: Ja"
+msgstr "Habe ich: Ja"
+
+#: src/App.tsx:369
+msgid "Habe ich: Nein"
+msgstr "Habe ich: Nein"
+
+#: src/App.tsx:412
+msgid "Jede Zeile ist ein eigener Eintrag. „Enthalten in“ ist eine freie Notiz, keine Verknüpfung."
+msgstr "Jede Zeile ist ein eigener Eintrag. „Enthalten in“ ist eine freie Notiz, keine Verknüpfung."
+
+#: src/App.tsx:305
+msgid "Kamera-Scan ist noch nicht umgesetzt."
+msgstr "Kamera-Scan ist noch nicht umgesetzt."
+
+#: src/components/Cover.tsx:29
+msgid "Kein Cover verfügbar"
+msgstr "Kein Cover verfügbar"
+
+#: src/App.tsx:163
+msgid "Kein offizielles Angebot von Disney, Egmont oder Google."
+msgstr "Kein offizielles Angebot von Disney, Egmont oder Google."
+
+#: src/components/LtbCard.tsx:21
+msgid "Kein Titel erfasst"
+msgstr "Kein Titel erfasst"
+
+#: src/components/RowList.tsx:13
+msgid "Keine Einträge für diese Suche."
+msgstr "Keine Einträge für diese Suche."
+
+#: src/App.tsx:433
+msgid "Keine LTB-Ausgaben erfasst."
+msgstr "Keine LTB-Ausgaben erfasst."
+
+#: src/App.tsx:435
+msgid "Keine LTB-Ausgaben für „{query}“ gefunden."
+msgstr "Keine LTB-Ausgaben für „{query}“ gefunden."
+
+#: src/App.tsx:475
+msgid "Keine Sonderserien für diese Suche gefunden."
+msgstr "Keine Sonderserien für diese Suche gefunden."
+
+#: src/App.tsx:233
+#: src/App.tsx:251
+msgid "LTB"
+msgstr "LTB"
+
+#. placeholder {0}: row.number
+#: src/components/LtbCard.tsx:18
+msgid "LTB Nr. {0}"
+msgstr "LTB Nr. {0}"
+
+#: src/App.tsx:354
+msgid "LTB Nr. {exactNumber}"
+msgstr "LTB Nr. {exactNumber}"
+
+#: src/App.tsx:58
+msgid "LTB-Sammlung"
+msgstr "LTB-Sammlung"
+
+#: src/App.tsx:374
+msgid "mehrfach erfasst"
+msgstr "mehrfach erfasst"
+
+#: src/App.tsx:409
+msgid "Meine LTB-Ausgaben"
+msgstr "Meine LTB-Ausgaben"
+
+#: src/App.tsx:61
+msgid "Meine Lustiges-Taschenbuch-Sammlung"
+msgstr "Meine Lustiges-Taschenbuch-Sammlung"
+
+#. placeholder {0}: row.number
+#: src/components/RowList.tsx:27
+msgid "Nr. {0}"
+msgstr "Nr. {0}"
+
+#: src/components/Cover.tsx:25
+msgid "Nr. {number}"
+msgstr "Nr. {number}"
+
+#: src/components/Cover.tsx:21
+msgid "Nr. {number} – {title}"
+msgstr "Nr. {number} – {title}"
+
+#: src/components/NumberGrid.tsx:50
+msgid "Nummer {number} anzeigen"
+msgstr "Nummer {number} anzeigen"
+
+#: src/App.tsx:337
+msgid "Nummer oder Titel suchen"
+msgstr "Nummer oder Titel suchen"
+
+#: src/components/NumberGrid.tsx:25
+msgid "Nummern-Übersicht"
+msgstr "Nummern-Übersicht"
+
+#: src/App.tsx:118
+msgid "Offizielle LTB-Seite"
+msgstr "Offizielle LTB-Seite"
+
+#: src/App.tsx:236
+#: src/App.tsx:284
+#: src/App.tsx:532
+msgid "Panzerknacker & Co"
+msgstr "Panzerknacker & Co"
+
+#: src/App.tsx:313
+msgid "QR-Scan folgt später"
+msgstr "QR-Scan folgt später"
+
+#. placeholder {0}: formatDateTime(collection.meta.syncedAt, locale)
+#: src/App.tsx:142
+msgid "Sammlung synchronisiert: {0}"
+msgstr "Sammlung synchronisiert: {0}"
+
+#: src/App.tsx:318
+msgid "Schreiben direkt ins Google Sheet per OAuth ist geplant."
+msgstr "Schreiben direkt ins Google Sheet per OAuth ist geplant."
+
+#: src/App.tsx:234
+#: src/App.tsx:262
+#: src/App.tsx:462
+msgid "Sonderserien"
+msgstr "Sonderserien"
+
+#: src/App.tsx:68
+#: src/App.tsx:74
+msgid "Sprache"
+msgstr "Sprache"
+
+#: src/App.tsx:300
+#: src/App.tsx:338
+msgid "Suche"
+msgstr "Suche"
+
+#: src/App.tsx:247
+msgid "Überblick"
+msgstr "Überblick"
+
+#: src/components/NumberGrid.tsx:29
+msgid "vorhanden"
+msgstr "vorhanden"
+
+#. placeholder {0}: ownedNumbers.size
+#: src/components/NumberGrid.tsx:35
+msgid "vorhanden: {0} / {maxNumber}"
+msgstr "vorhanden: {0} / {maxNumber}"
+
+#: src/App.tsx:347
+msgid "Zurücksetzen"
+msgstr "Zurücksetzen"

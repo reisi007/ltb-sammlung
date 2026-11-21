@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "rules": {
+    "any-types": {
+      "value": 0
+    },
+    "console-log": {
+      "value": 0
+    },
+    "test-count": {
+      "value": 22
+    },
+    "todo-markers": {
+      "value": 0
+    },
+    "ts-errors": {
+      "value": 0
+    }
+  }
+}

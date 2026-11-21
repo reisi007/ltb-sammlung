@@ -1,0 +1,66 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install ratchet
+        run: |
+          curl -fsSL -o /tmp/ratchet \
+            https://github.com/all-the-rest/ratchet-cli/releases/download/v0.8.0/ratchet-0.8.0-linux-x86_64
+          echo 'bd5a9d77b287c9aed449d20216b6101816e136fce213659e3e04486db06a2326  /tmp/ratchet' | sha256sum -c -
+          chmod +x /tmp/ratchet
+          sudo mv /tmp/ratchet /usr/local/bin/ratchet
+          ratchet --version
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify
+        run: npm run verify
+
+      - name: Quality gates
+        run: ratchet check --no-ratchet
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
