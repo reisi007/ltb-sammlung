@@ -190,12 +190,15 @@ export function AddSeriesDialog({
             <div className="flex items-end gap-2">
               <label className="flex-1">
                 <span className="label-text text-xs">
-                  <Trans>Nummern (bis zu {MAX_ADD_ITEMS}, durch Komma getrennt)</Trans>
+                  <Trans>
+                    Nummern (bis zu {MAX_ADD_ITEMS}; Komma, Semikolon oder
+                    Zeilenumbruch)
+                  </Trans>
                 </span>
-                <input
-                  type="text"
+                <textarea
+                  rows={1}
                   inputMode="numeric"
-                  className="input w-full"
+                  className="textarea w-full resize-none"
                   placeholder={t`z. B. 1, 2, 3`}
                   value={numbersText}
                   onChange={(event) => setNumbersText(event.target.value)}
@@ -229,13 +232,18 @@ export function AddSeriesDialog({
                   const entry = getSeriesEntry(catalog, normalizedName, number);
 
                   return (
-                    <li key={number} className="badge badge-outline badge-lg">
-                      {number}
-                      {entry?.title != null && (
-                        <span className="ml-1 max-w-52 truncate text-xs opacity-70">
-                          {entry.title}
-                        </span>
-                      )}
+                    <li
+                      key={number}
+                      className={
+                        entry?.title != null
+                          ? "badge badge-success badge-lg badge-soft"
+                          : "badge badge-warning badge-lg badge-soft"
+                      }
+                    >
+                      <span className="font-semibold">{number}</span>
+                      <span className="ml-1 max-w-56 truncate text-xs">
+                        {entry?.title ?? <Trans>Nicht im Katalog</Trans>}
+                      </span>
                     </li>
                   );
                 })}
