@@ -116,6 +116,18 @@ PHP-FPM sprechen kann. Damit das keine Daten preisgibt:
 - Ohne Session antwortet `/api/*` mit 401; die App leitet nach `/login.html`.
   Ein 5xx wird als Fehler angezeigt, nicht als Nur-Lesen-Snapshot maskiert.
 
+## Build-Abhängigkeiten (`npm audit`)
+
+- `npm audit --omit=dev` meldet **0** Laufzeit-Schwachstellen; das
+  ausgelieferte Bundle enthält keine davon.
+- `npm audit` meldet 4 moderate Befunde ausschließlich im Build-Tooling:
+  `vite-plugin-pwa` → `workbox-build` → `glob`/`minimatch` (DoS über
+  globparts/AbortSignal, GHSA-g3hv-75wg-m249 und GHSA-3g3m-2fjr-6pw4).
+  Betroffen sind nur Build/CI, nicht die App zur Laufzeit.
+- Ein `npm audit fix --force` würde `vite-plugin-pwa` auf 1.1.0
+  zurückstufen (breaking). Bewusst nicht; die Dependabot-Updates bleiben
+  dafür der Weg. Sobald eine kompatible Version erscheint, wird aktualisiert.
+
 ## Bewusst akzeptierte Restpunkte
 
 - Die App-Hülle ist ohne Login erreichbar (siehe oben). Die **Sammlungsdaten
