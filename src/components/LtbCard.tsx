@@ -1,4 +1,4 @@
-import { Trans } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { CatalogEntry, CollectionRow } from "../lib/collection";
 import { Cover } from "./Cover";
 
@@ -10,6 +10,8 @@ interface LtbCardProps {
 }
 
 export function LtbCard({ row, entry, copies = 1, onAddCopy }: LtbCardProps) {
+  const { t } = useLingui();
+
   return (
     <article className="card bg-base-100 shadow-sm">
       <figure className="aspect-[3/4] bg-base-200">
@@ -21,7 +23,7 @@ export function LtbCard({ row, entry, copies = 1, onAddCopy }: LtbCardProps) {
           {copies > 1 && (
             <span
               className="badge badge-secondary badge-sm"
-              title={`${copies} Exemplare erfasst`}
+              title={t`${copies} Exemplare erfasst`}
             >
               ×{copies}
             </span>

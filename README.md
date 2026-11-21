@@ -17,8 +17,10 @@ Die CI (`.github/workflows/ci.yml`) prüft nur Build und Gates.
 
 Dauerhafte Architektur-, Auth- und Cover-Entscheidungen stehen in
 [`docs/decisions.md`](docs/decisions.md). Kurzfassung: Der Code ist öffentlich,
-Sammlung und Katalog sind privat; die App hat eine eigene Login-Seite und wird
-auf Multi-User-Betrieb ausgelegt; GitHub Pages bleibt deaktiviert.
+Sammlung und Katalog liegen nicht im Repository; die App hat eine eigene
+Login-Seite und wird auf Multi-User-Betrieb ausgelegt; GitHub Pages bleibt
+deaktiviert. Wichtig: Das Google Sheet ist per Link lesbar — der Login schützt
+die Oberfläche, nicht die Sheet-Daten.
 
 ## Schnellstart
 
@@ -165,10 +167,14 @@ Die App ist seit Version 1.0 nicht mehr nur lesend. Über **„Bände hinzufüge
 lassen sich **bis zu drei Bände pro Vorgang** erfassen – per Text oder per
 QR-/Barcode-Scan:
 
-- Text: `219`, `#219`, `LTB 219` oder mehrere durch Komma/Leerzeichen.
-- Scan: Kamera mit `BarcodeDetector` (QR, EAN, Code 128), sonst `jsQR` als
-  Fallback. Aus dem Payload wird die Nummer gelesen; fremde Inhalte werden
-  abgelehnt statt geraten.
+- Text: eine Nummer pro Zeile (`219`, `#219`, `LTB 219`), bis zu drei Zeilen.
+  Im **Sonderserien**-Dialog dürfen mehrere Nummern durch Komma getrennt
+  eingegeben werden (`1, 2, 3`).
+- Scan: Kamera mit `BarcodeDetector` (QR, Code 128) oder `jsQR` als Fallback.
+  Aus dem Payload wird die Nummer gelesen; fremde Inhalte werden abgelehnt
+  statt geraten. Die gedruckte **ISBN/EAN** eines Bandes enthält die
+  LTB-Nummer nicht und wird deshalb abgelehnt (kein Nummernraten); ein
+  QR-Code mit der Nummer funktioniert.
 - Unbekannte Nummern sind erlaubt (Status „Nicht im Katalog“), ebenso doppelte
   Exemplare. Pro Exemplar entsteht eine Zeile; `containedIn` bleibt eine freie
   Notiz.
@@ -192,9 +198,15 @@ Technik:
   schreibenden Requests.
 - **Datenbank**: SQLite im Volume `ltb_ltb_data` (Host:
   `/var/lib/docker/volumes/ltb_ltb_data/`). Beim ersten Start wird sie aus
-  `src/data/collection.json` geseedet; danach ist sie die Quelle. Backups:
-  `docker run --rm -v ltb_ltb_data:/data -v "$PWD":/backup alpine tar czf
-  /backup/ltb-db-$(date +%F).tgz -C /data .`
+  `src/data/collection.json` geseedet; danach ist sie die Quelle. Backup
+  WAL-sicher mit einer konsistenten Kopie (nicht die laufenden Dateien
+  tarren):
+
+  ```bash
+  docker run --rm -v ltb_ltb_data:/data -v "$PWD":/backup \
+    php:8.3-fpm-alpine php -r \
+    '$p=new PDO("sqlite:/data/ltb.sqlite"); $p->exec("VACUUM INTO \"/backup/ltb-db-".date("Y-m-d").".sqlite\"");'
+  ```
 - **Deployment**: `deploy.sh` spiegelt `api/` nach
   `/home/webadmin/websites/ltb-api`, den Seed nach
   `/home/webadmin/websites/ltb-seed`, installiert

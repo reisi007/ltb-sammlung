@@ -131,6 +131,10 @@ final class Store
             $this->setMeta('seeded_at', $now);
             $this->setMeta('sheet_id', (string) ($seed['meta']['sheetId'] ?? ''));
             $this->setMeta('sheet_url', (string) ($seed['meta']['sheetUrl'] ?? ''));
+            $this->setMeta(
+                'seed_synced_at',
+                (string) ($seed['meta']['syncedAt'] ?? $now)
+            );
             $this->db->commit();
         } catch (Throwable $error) {
             $this->db->rollBack();
@@ -189,7 +193,9 @@ final class Store
             'meta' => [
                 'sheetId' => $this->meta('sheet_id') ?? '',
                 'sheetUrl' => $this->meta('sheet_url') ?? '',
-                'syncedAt' => $lastWrite === false || $lastWrite === null
+                // Zeitpunkt des Sheet-Imports (nicht der letzten Schreiboperation).
+                'syncedAt' => $this->meta('seed_synced_at') ?? gmdate('c'),
+                'updatedAt' => $lastWrite === false || $lastWrite === null
                     ? gmdate('c')
                     : (string) $lastWrite,
                 'source' => 'sqlite',

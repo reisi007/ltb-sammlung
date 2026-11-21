@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_ADD_ITEMS,
+  buildAddItems,
   extractNumberFromScan,
   getDuplicateNumbers,
   parseVolumeInput,
@@ -84,6 +85,36 @@ describe("getDuplicateNumbers", () => {
 
   it("verträgt eine leere Sammlung", () => {
     expect(getDuplicateNumbers([]).size).toBe(0);
+  });
+});
+
+describe("buildAddItems", () => {
+  it("lässt die Notiz an ihrer Zeile, auch wenn dazwischen eine Zeile leer ist", () => {
+    expect(
+      buildAddItems([
+        { number: null, note: "" },
+        { number: 219, note: "Zweites Exemplar" },
+      ]),
+    ).toEqual([{ number: 219, containedIn: "Zweites Exemplar" }]);
+  });
+
+  it("verwirft Notizen aus leeren Zeilen nicht auf die falsche Nummer", () => {
+    expect(
+      buildAddItems([
+        { number: 12, note: "" },
+        { number: null, note: "Notiz ohne Nummer" },
+        { number: 13, note: "Mammut 159" },
+      ]),
+    ).toEqual([
+      { number: 12, containedIn: null },
+      { number: 13, containedIn: "Mammut 159" },
+    ]);
+  });
+
+  it("trimmt Notizen und macht leere Notizen zu null", () => {
+    expect(buildAddItems([{ number: 7, note: "  " }])).toEqual([
+      { number: 7, containedIn: null },
+    ]);
   });
 });
 

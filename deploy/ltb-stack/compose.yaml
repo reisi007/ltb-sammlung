@@ -14,7 +14,7 @@ services:
     restart: unless-stopped
     command: >
       sh -c "chown -R www-data:www-data /data &&
-      exec php-fpm -F"
+      exec php-fpm -F -d expose_php=0"
     environment:
       LTB_DB: /data/ltb.sqlite
       LTB_SEED: /srv/seed/collection.json

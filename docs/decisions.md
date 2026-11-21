@@ -1,7 +1,7 @@
 # Entscheidungen und Zielarchitektur
 
 **Status:** Version 1.0 umgesetzt (2026-11-21). Offen ist nur der eigene
-Multi-User-Auth-Dienst (Issue #2).
+Multi-User-Auth-Dienst.
 
 Dieses Dokument hält die dauerhaften Entscheidungen fest. Offene Arbeit steht
 als GitHub-Issue im Repository, nicht hier.
@@ -21,7 +21,8 @@ als GitHub-Issue im Repository, nicht hier.
     Auslieferungsweg für echte Daten.
 - Die Auth auf `ltb.all-the.rest` ist damit **kein Vertraulichkeitsschutz für
   die Daten**, sondern nur eine Zugangsschranke für die Oberfläche. Diese
-  Formulierung ist bewusst: wer die Daten hat, braucht die Seite nicht.
+  Formulierung ist bewusst: Das Google Sheet ist weiterhin per Link lesbar,
+  wer die Daten hat, braucht die Seite nicht.
 
 ## 2. Authentifizierung: eigene Login-Seite, Ziel Multi-User
 
@@ -39,7 +40,7 @@ als GitHub-Issue im Repository, nicht hier.
 ### Ziel: eigener Auth-Dienst, mehrere Nutzer
 
 Der Einzelnutzerbetrieb darf **nicht** das technische Limit sein. Der eigene
-Dienst (Issue #2) bekommt mindestens:
+Dienst (noch nicht umgesetzt) bekommt mindestens:
 
 ```text
 users(id, username UNIQUE, password_hash, role, created_at)
@@ -121,8 +122,8 @@ Caddy-Block plus Container; die Login-Seite und die API-Pfade bleiben gleich.
 
 ## 5. Offene Punkte (als Issues)
 
-- **#2** Eigener Auth-Dienst für mehrere Nutzer (users/sessions, `owner` pro
-  Zeile). Die PHP-API und SQLite stehen bereits; der Wechsel ist ein
-  Caddy-Block plus Container.
+- Eigener Auth-Dienst für mehrere Nutzer (users/sessions, `owner` pro Zeile).
+  Die PHP-API und SQLite stehen bereits; der Wechsel ist ein Caddy-Block plus
+  Container. Dafür ist noch kein Ticket angelegt.
 - Optional: Bearbeiten/Löschen in der Oberfläche (die API kann beides schon)
   und die Rücksynchronisation ins Google Sheet (bewusst nicht vorgesehen).

@@ -28,7 +28,6 @@ function respond(int $status, array $payload): never
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
-    header('X-Content-Type-Options: nosniff');
     echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
@@ -52,7 +51,20 @@ function request_path(): string
 
 function read_json_body(): array
 {
-    $raw = file_get_contents('php://input');
+    $length = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
+
+    if ($length > 8192) {
+        throw new ValidationError(413, 'Request-Body ist zu groß.');
+    }
+
+    $handle = fopen('php://input', 'rb');
+
+    if ($handle === false) {
+        throw new ValidationError(400, 'Request-Body nicht lesbar.');
+    }
+
+    $raw = stream_get_contents($handle, 8192);
+    fclose($handle);
 
     if ($raw === false || trim($raw) === '') {
         throw new ValidationError(400, 'Leerer Request-Body.');
@@ -75,7 +87,9 @@ function authenticated_user(): string
 {
     // Caddy setzt bei FastCGI den CGI-Parameter REMOTE_USER; kommt der Wert
     // als HTTP-Header (copy_headers), heisst er HTTP_REMOTE_USER.
-    $user = trim((string) ($_SERVER['REMOTE_USER'] ?? $_SERVER['HTTP_REMOTE_USER'] ?? ''));
+    // Nur der von Caddy gesetzte CGI-Parameter zaehlt. Ein HTTP-Header
+    // waere vom Client setzbar und damit kein Auth-Nachweis.
+    $user = trim((string) ($_SERVER['REMOTE_USER'] ?? ''));
 
     if ($user === '') {
         fail(401, 'Nicht angemeldet.');

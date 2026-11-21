@@ -29,6 +29,13 @@ jobs:
           sudo mv /tmp/ratchet /usr/local/bin/ratchet
           ratchet --version
 
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_sqlite
+          coverage: none
+
       - name: Install dependencies
         run: npm ci
 

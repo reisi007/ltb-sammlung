@@ -170,13 +170,24 @@ if [[ -n "${LTB_USER:-}" && -n "${LTB_PASSWORD:-}" ]]; then
     echo "FEHLER: Login ueber die API antwortet mit HTTP $login_status." >&2
     exit 1
   fi
-  read_status="$(curl -s -o /dev/null -w '%{http_code}' -b "$cookie_jar" \
+  collection_body="$(mktemp)"
+  read_status="$(curl -s -o "$collection_body" -w '%{http_code}' -b "$cookie_jar" \
     https://ltb.all-the.rest/api/collection || true)"
   if [[ "$read_status" != "200" ]]; then
     echo "FEHLER: /api/collection mit Cookie antwortet mit HTTP $read_status." >&2
+    rm -f "$collection_body"
     exit 1
   fi
-  echo "Login und Sammlung mit Cookie: HTTP 200"
+
+  # Eine leere oder nicht geseedete Datenbank darf keinen gruenen Deploy geben.
+  ltb_rows="$(python3 -c 'import json,sys; d=json.load(sys.stdin); print(len(d.get("ltb", [])) if d.get("meta", {}).get("source") == "sqlite" else 0)' < "$collection_body" || echo 0)"
+  rm -f "$collection_body"
+
+  if [[ "${ltb_rows:-0}" -lt 1 ]]; then
+    echo "FEHLER: Die API liefert keine LTB-Zeilen (Quelle/Seed pruefen)." >&2
+    exit 1
+  fi
+  echo "Login und Sammlung mit Cookie: HTTP 200, ${ltb_rows} LTB-Zeilen"
 fi
 
 echo "Deploy abgeschlossen: https://ltb.all-the.rest/"

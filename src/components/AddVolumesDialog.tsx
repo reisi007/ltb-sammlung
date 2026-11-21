@@ -3,8 +3,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   MAX_ADD_ITEMS,
   MAX_VOLUME_NUMBER,
+  buildAddItems,
   extractNumberFromScan,
-  toAddItems,
   validateAddNumbers,
   type AddItem,
   type AddValidationError,
@@ -109,9 +109,10 @@ export function AddVolumesDialog({
     [rows],
   );
 
-  const numbers = parsed
-    .map((entry) => entry.number)
-    .filter((number): number is number => number !== null);
+  const items = buildAddItems(
+    parsed.map((entry) => ({ number: entry.number, note: entry.row.note })),
+  );
+  const numbers = items.map((item) => item.number);
 
   const invalidRow = parsed.find(
     (entry) => entry.row.value.trim() !== "" && entry.number === null,
@@ -138,7 +139,7 @@ export function AddVolumesDialog({
     setError(null);
 
     try {
-      await onAdd(toAddItems(numbers, rows.map((row) => row.note)));
+      await onAdd(items);
       onClose();
     } catch (submitError) {
       setError({
@@ -202,7 +203,16 @@ export function AddVolumesDialog({
             }}
           />
         ) : (
-          <div className="flex flex-col gap-4">
+          <form
+            id="add-volumes-form"
+            className="flex flex-col gap-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              handleSubmit().catch(() => {
+                // Fehler landet bereits im Dialogzustand.
+              });
+            }}
+          >
             {rows.map((row, index) => {
               const entry = parsed[index];
               const number = entry?.number ?? null;
@@ -344,7 +354,7 @@ export function AddVolumesDialog({
                 </span>
               </div>
             )}
-          </div>
+          </form>
         )}
 
         <div className="modal-action">
@@ -353,14 +363,10 @@ export function AddVolumesDialog({
           </button>
           {scanRow === null && (
             <button
-              type="button"
+              type="submit"
+              form="add-volumes-form"
               className="btn btn-primary"
               disabled={saving || numbers.length === 0 || invalidRow !== undefined}
-              onClick={() => {
-                handleSubmit().catch(() => {
-                  // Fehler landet bereits im Dialogzustand.
-                });
-              }}
             >
               {saving && (
                 <span className="loading loading-spinner loading-sm" aria-hidden="true" />

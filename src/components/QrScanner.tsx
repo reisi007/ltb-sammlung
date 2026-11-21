@@ -36,6 +36,10 @@ export function QrScanner({ onDetected, onStop }: QrScannerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<number | null>(null);
+  // Die Callbacks des Parents wechseln bei jedem Render; fuer den
+  // Kamera-Effekt zaehlt immer der aktuelle Stand, ohne ihn neu zu starten.
+  const callbacksRef = useRef({ onDetected, onStop });
+  callbacksRef.current = { onDetected, onStop };
   const [status, setStatus] = useState<"starting" | "scanning" | "error">(
     "starting",
   );
@@ -49,8 +53,8 @@ export function QrScanner({ onDetected, onStop }: QrScannerProps) {
 
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
-    onStop();
-  }, [onStop]);
+    callbacksRef.current.onStop();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,7 +66,7 @@ export function QrScanner({ onDetected, onStop }: QrScannerProps) {
       const results = await detector.detect(video);
 
       if (results.length > 0 && results[0].rawValue !== "") {
-        onDetected(results[0].rawValue);
+        callbacksRef.current.onDetected(results[0].rawValue);
         stop();
       }
     }
@@ -83,7 +87,7 @@ export function QrScanner({ onDetected, onStop }: QrScannerProps) {
       const result = jsQR(image.data, image.width, image.height);
 
       if (result !== null && result.data !== "") {
-        onDetected(result.data);
+        callbacksRef.current.onDetected(result.data);
         stop();
       }
     }
@@ -151,7 +155,7 @@ export function QrScanner({ onDetected, onStop }: QrScannerProps) {
 
       streamRef.current?.getTracks().forEach((track) => track.stop());
     };
-  }, [onDetected, stop]);
+  }, [stop]);
 
   return (
     <div className="flex flex-col gap-3">

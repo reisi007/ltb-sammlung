@@ -134,6 +134,29 @@ export interface AddItem {
   containedIn: string | null;
 }
 
+export interface AddRowInput {
+  /** `null`, wenn die Zeile leer oder ungültig ist. */
+  number: number | null;
+  note: string;
+}
+
+/**
+ * Baut die API-Einträge aus den Dialogzeilen. Leere Zeilen werden
+ * übersprungen; die Notiz bleibt an ihrer Zeile — auch wenn dazwischen eine
+ * Zeile leer ist.
+ */
+export function buildAddItems(rows: readonly AddRowInput[]): AddItem[] {
+  return rows
+    .filter(
+      (row): row is AddRowInput & { number: number } => row.number !== null,
+    )
+    .map((row) => {
+      const note = row.note.trim();
+
+      return { number: row.number, containedIn: note === "" ? null : note };
+    });
+}
+
 export function toAddItems(
   numbers: readonly number[],
   notes: readonly string[] = [],

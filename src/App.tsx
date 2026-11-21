@@ -214,6 +214,16 @@ function CollectionView({
   const stats = getStats(collection);
   const ownedNumbers = new Set(collection.ltb.map((row) => row.number));
   const duplicates = getDuplicateNumbers(collection.ltb);
+  // Die Nummern-Übersicht darf nicht von einer einzelnen Fehleingabe
+  // (z. B. 99999) auf zehntausende Schaltflächen aufgeblasen werden.
+  const knownMaxNumber = catalog.entries.reduce(
+    (max, entry) => Math.max(max, entry.number),
+    0,
+  );
+  const gridMaxNumber =
+    knownMaxNumber > 0
+      ? Math.min(stats.maxLtbNumber, knownMaxNumber)
+      : Math.min(stats.maxLtbNumber, 999);
   const [addOpen, setAddOpen] = useState(false);
   const [addNumbers, setAddNumbers] = useState<readonly number[] | undefined>();
   const [seriesDialog, setSeriesDialog] = useState<{
@@ -503,7 +513,7 @@ function CollectionView({
           </div>
 
           <NumberGrid
-            maxNumber={stats.maxLtbNumber}
+            maxNumber={gridMaxNumber}
             ownedNumbers={ownedNumbers}
             onSelect={selectNumber}
           />
