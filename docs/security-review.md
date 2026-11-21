@@ -74,7 +74,7 @@ Backup-Prüfungen) wurden im Review umgesetzt.
 - PHP-Container nur im Docker-Netz `webnet`, keine veröffentlichten Ports,
   128 MB / 0,5 CPU, Healthcheck. Quellcode und Seed read-only eingehängt,
   Datenbank im Volume `ltb_ltb_data`.
-- Backup: `deploy/ltb-vacuum.sh` läuft täglich 03:23 per Cron, schreibt
+- Backup: `deploy/ltb-vacuum.sh` läuft täglich 02:45 per Cron, schreibt
   `/var/backups/ltb/ltb-<Datum>.sqlite.gz` (14 Tage) und lädt sie per
   `rclone` nach `pCloud:Backup/strato-v2/db/ltb/`.
   - `VACUUM INTO` erzeugt eine konsistente Kopie bei laufendem Betrieb.

@@ -53,7 +53,7 @@ Der Dev-Server läuft wegen des GitHub-Pages-Basispfads unter
 | `npm run test` | Vitest einmalig |
 | `npm run verify` | Typecheck, Tests und Build nacheinander |
 | `npm run sync:data` | Vier CSV-Tabs des Google Sheets nach `src/data/collection.json` |
-| `npm run sync:catalog` | Cover-URLs und Titel von Duckipedia nach `src/data/catalog.json` |
+| `npm run sync:catalog` | Cover-URLs und Titel (Duckipedia, offizielle Seite, Egmont-Shop) nach `src/data/catalog.json` |
 | `npm run i18n:extract` | Nachrichten aus `src/` in die `.po`-Kataloge extrahieren |
 | `npm run i18n:compile` | `.po`-Kataloge kompilieren (der Vite-Plugin kompiliert sonst beim Build) |
 | `npm run data:check` | prüft, dass echte Daten statt der Platzhalter vorliegen |
@@ -121,13 +121,26 @@ das erste vorhandene Bild und blendet bei Ladefehlern auf einen Text-Fallback
 - Duckipedia-Ausgabenliste (Bandtitel):
   <https://de.duckipedia.org/wiki/Ausgabenliste_Lustiges_Taschenbuch>
 - Duckipedia-MediaWiki-API: <https://de.duckipedia.org/api.php>
+- Duckipedia-Ausgaben mit Cover im Infobox-Feld `BILD` (Donald Duck, Panzerknacker & Co):
+  `https://de.duckipedia.org/wiki/DD_<nummer>` bzw.
+  `https://de.duckipedia.org/wiki/Panzerknacker_%26_Co_<nummer>`
+- Egmont-Shop für Reihen, die nicht in der Nebenreihen-Übersicht stehen
+  (Micky Maus Legacy Collection): `https://www.egmont-shop.de/<slug>-nr-<nr>/`
 - Offizielle Cover-URLs als Fallback:
   `https://www.lustiges-taschenbuch.de/sites/default/files/cover/LTB-<nummer>.jpg`
 
 Der Katalog-Sync liest nur den **ersten** `<gallery>`-Block der Covergalerie
 (Neuauflagen-Galerien werden ignoriert) und die **erste** Titelzeile pro Nummer.
-Cover-Anfragen laufen in Batches à 50 mit maximal zwei Retries und 150 ms Pause.
-Es werden ausschließlich URLs gespeichert; keine Bilder heruntergeladen.
+Sonderserien kommen aus der offiziellen Nebenreihen-Übersicht, Micky Maus
+Legacy Collection aus dem Egmont-Shop, Donald Duck und Panzerknacker & Co aus
+den jeweiligen Duckipedia-Infoboxen. Cover-Anfragen laufen in Batches à 50 mit
+maximal zwei Retries und 150 ms Pause. Es werden ausschließlich URLs
+gespeichert; keine Bilder heruntergeladen.
+
+Reihennamen werden auf die offiziellen Schreibweisen abgebildet (z. B.
+„Premium+“ → „LTB Premium +“, „Phantomias Collection“ → „LTB Phantomias
+Collection“). Die Datenbank-Migration ist idempotent und führt vorhandene
+Nummern zusammen; der Dialog schlägt bekannte Namen per Autocomplete vor.
 
 ## Google Sheet ohne Business-Konto
 
@@ -165,12 +178,15 @@ Alternativen, falls sich die Anforderungen ändern:
 ## Bände erfassen (API)
 
 Die App ist seit Version 1.0 nicht mehr nur lesend. Über **„Bände hinzufügen“**
-lassen sich **bis zu drei Bände pro Vorgang** erfassen – per Text oder per
+lassen sich viele Bände pro Vorgang erfassen – per Text oder per
 QR-/Barcode-Scan:
 
-- Text: eine Nummer pro Zeile (`219`, `#219`, `LTB 219`), bis zu drei Zeilen.
-  Im **Sonderserien**-Dialog dürfen mehrere Nummern durch Komma getrennt
-  eingegeben werden (`1, 2, 3`).
+- Text: eine Nummer pro Zeile (`219`, `#219`, `LTB 219`). Mehrere Nummern
+  dürfen durch Komma, Semikolon oder Zeilenumbruch getrennt eingegeben werden
+  (`219, 220, 221`); jede Nummer wird zu einer eigenen Zeile mit eigener
+  Notiz. Das gilt für die Hauptreihe und für Sonderserien.
+- Die Obergrenze pro Vorgang ist bewusst hoch (200) und dient nur dem Schutz
+  der API; die Suche bleibt bei drei Nummern.
 - Scan: Kamera mit `BarcodeDetector` (QR, Code 128; EAN wird gelesen, aber
   als Nummer abgelehnt) oder `jsQR` als Fallback.
   Aus dem Payload wird die Nummer gelesen; fremde Inhalte werden abgelehnt
@@ -180,8 +196,8 @@ QR-/Barcode-Scan:
 - Unbekannte Nummern sind erlaubt (Status „Nicht im Katalog“), ebenso doppelte
   Exemplare. Pro Exemplar entsteht eine Zeile; `containedIn` bleibt eine freie
   Notiz.
-- Mehrfach vorhandene Nummern zeigt die Karte als `×N`, die Suche als Badge und
-  der Abschnitt „Mehrfach vorhanden“ als filterbare Übersicht.
+- Mehrfach vorhandene Nummern zeigt die Karte als runden Badge `×N` unten
+  rechts über dem Cover; die Suche zeigt die Anzahl im Treffer-Badge.
 
 Technik:
 
@@ -218,7 +234,7 @@ Technik:
   scp deploy/ltb-vacuum.sh root@reisinger.pictures:/usr/local/bin/ltb-vacuum.sh
   ssh root@reisinger.pictures 'chmod 755 /usr/local/bin/ltb-vacuum.sh; \
     (crontab -l 2>/dev/null; \
-     echo "23 3 * * * /usr/local/bin/ltb-vacuum.sh >> /var/log/ltb-vacuum.log 2>&1") | crontab -'
+     echo "45 2 * * * /usr/local/bin/ltb-vacuum.sh >> /var/log/ltb-vacuum.log 2>&1") | crontab -'
   ```
 
   Wiederherstellung: Datei entpacken, PHP-Container stoppen, Entpacktes als

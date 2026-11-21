@@ -47,6 +47,18 @@ const EGMONT_SERIES = [
 ];
 
 /**
+ * Sondereditionen sind nach Jahren und Bänden gegliedert (z. B.
+ * "2016-band-1-entenhausens-unterwelt-…"). Die Übersicht ist paginiert.
+ */
+const SONDEREDITIONEN = [
+  {
+    name: "Entenhausens Unterwelt",
+    year: 2016,
+    slug: "entenhausens-unterwelt",
+  },
+];
+
+/**
  * Duckipedia-Artikel der Form "DD 201" bzw. "Panzerknacker & Co 10" enthalten
  * das Cover im Infobox-Feld `BILD`.
  */
@@ -69,7 +81,9 @@ const SERIES_ALIASES = {
   halloween: "LTB Halloween",
   "ltb-history": "LTB History",
   "phantomias collection": "LTB Phantomias Collection",
-  "entenhausens unterwelt": "LTB Sonderedition – Entenhausens Unterwelt",
+  "ltb sonderedition – entenhausens unterwelt": "Entenhausens Unterwelt",
+  "ltb sonderedition - entenhausens unterwelt": "Entenhausens Unterwelt",
+  "sonderedition entenhausens unterwelt": "Entenhausens Unterwelt",
 };
 const OUTPUT_FILE = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -775,6 +789,70 @@ async function crawlEgmontSeries({ name, slug, maxIssues }) {
   return entries;
 }
 
+/** Liest alle Bände einer Sonderedition aus der paginierten Übersicht. */
+async function crawlSondereditionen({ name, year, slug }) {
+  const baseUrl = `${SERIES_BASE}/sondereditionen`;
+  const links = new Map();
+  let page = 0;
+
+  while (page < 20) {
+    const url = page === 0 ? baseUrl : `${baseUrl}?page=${page}`;
+    const label = `${name} (Übersicht ${url})`;
+    const html = await fetchHtml(url, label);
+    const pattern =
+      /<a[^>]+href="([^"]*\/sondereditionen\/([^"]+))"[^>]*>([\s\S]*?)<\/a>/gi;
+    let match = pattern.exec(html);
+
+    while (match !== null) {
+      const slugValue = match[2];
+      const bandPattern = new RegExp(`^${year}-band-(\\d+)-${slug}-`);
+      const band = bandPattern.exec(slugValue);
+
+      if (band !== null) {
+        const number = Number.parseInt(band[1], 10);
+        const title = stripHtml(match[3]);
+
+        if (Number.isSafeInteger(number) && !links.has(number)) {
+          links.set(number, {
+            url: match[1].startsWith("http")
+              ? match[1]
+              : `${OFFICIAL_SITE_BASE}${match[1]}`,
+            title: title === "" ? null : title,
+          });
+        }
+      }
+
+      match = pattern.exec(html);
+    }
+
+    if (!/rel="next"/i.test(html)) {
+      break;
+    }
+
+    page += 1;
+    await sleep(BATCH_PAUSE_MS);
+  }
+
+  const entries = [];
+
+  for (const number of [...links.keys()].sort((a, b) => a - b)) {
+    const { url, title } = links.get(number);
+    const html = await fetchHtml(url, `${name} Band ${number}`);
+    const cover = /https:\/\/www\.lustiges-taschenbuch\.de\/sites\/default\/files\/cover\/[^"\s]+/i.exec(
+      html,
+    );
+
+    entries.push({
+      number,
+      title,
+      coverUrl: cover === null ? null : cover[0],
+    });
+    await sleep(BATCH_PAUSE_MS);
+  }
+
+  return entries;
+}
+
 async function previousCatalogStats() {
   try {
     const previous = JSON.parse(await readFile(OUTPUT_FILE, "utf8"));
@@ -854,6 +932,18 @@ async function main() {
     if (seriesEntries.length === 0) {
       throw new Error(
         `${definition.name}: keine Bände gefunden. Es wurde nichts geschrieben.`,
+      );
+    }
+
+    series[definition.name] = seriesEntries;
+  }
+
+  for (const definition of SONDEREDITIONEN) {
+    const seriesEntries = await crawlSondereditionen(definition);
+
+    if (seriesEntries.length === 0) {
+      throw new Error(
+        `${definition.name}: keine Baende in den Sondereditionen gefunden. Es wurde nichts geschrieben.`,
       );
     }
 

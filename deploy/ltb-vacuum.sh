@@ -4,7 +4,11 @@
 # =============================================================================
 # Laeuft als Cronjob auf dem VPS (siehe deploy/README oder README.md):
 #
-#   23 3 * * * /usr/local/bin/ltb-vacuum.sh >> /var/log/ltb-vacuum.log 2>&1
+#   45 2 * * * /usr/local/bin/ltb-vacuum.sh >> /var/log/ltb-vacuum.log 2>&1
+#
+# Der Lauf ist bewusst eigenstaendig (eigenes Skript, eigener Cron, eigene
+# Retention). Er startet vor dem zentralen Server-Backup (03:00), damit dessen
+# Verify-Schritt die Tagesdatei unter db/ltb/ pruefen kann.
 #
 # Jeder Lauf schreibt genau eine eigene Datei pro Projekt:
 #   /var/backups/ltb/ltb-YYYY-MM-DD.sqlite.gz

@@ -116,7 +116,8 @@ isbn_map(owner, isbn, number, created_at)
 - **Auth der API:** Sessions in SQLite; ohne gültiges Cookie antwortet die
   API mit 401. Schreibende Requests prüfen zusätzlich den `Origin` gegen den
   Host. Benutzerverwaltung per CLI.
-- **Backup:** `deploy/ltb-vacuum.sh` läuft täglich per Cron, schreibt
+- **Backup:** `deploy/ltb-vacuum.sh` läuft täglich um 02:45 per Cron (vor dem
+  zentralen Server-Backup um 03:00, das die Tagesdatei mitprüft), schreibt
   `/var/backups/ltb/ltb-<Datum>.sqlite.gz` (`VACUUM INTO` plus
   `integrity_check`) und lädt sie per `rclone` hoch. Ein Deploy überschreibt
   die Datenbank nicht, weil `rsync --delete` nur `dist/` und `api/` betrifft.
