@@ -31,7 +31,9 @@ final class Store
         'Halloween' => 'LTB Halloween',
         'LTB-History' => 'LTB History',
         'Phantomias Collection' => 'LTB Phantomias Collection',
-        'Entenhausens Unterwelt' => 'LTB Sonderedition – Entenhausens Unterwelt',
+        'LTB Sonderedition – Entenhausens Unterwelt' => 'Entenhausens Unterwelt',
+        'LTB Sonderedition - Entenhausens Unterwelt' => 'Entenhausens Unterwelt',
+        'Sonderedition – Entenhausens Unterwelt' => 'Entenhausens Unterwelt',
     ];
 
     private PDO $db;

@@ -196,7 +196,10 @@ export const SERIES_ALIASES: Record<string, string> = {
   halloween: "LTB Halloween",
   "ltb-history": "LTB History",
   "phantomias collection": "LTB Phantomias Collection",
-  "entenhausens unterwelt": "LTB Sonderedition – Entenhausens Unterwelt",
+  "entenhausens unterwelt": "Entenhausens Unterwelt",
+  "ltb sonderedition – entenhausens unterwelt": "Entenhausens Unterwelt",
+  "ltb sonderedition - entenhausens unterwelt": "Entenhausens Unterwelt",
+  "sonderedition entenhausens unterwelt": "Entenhausens Unterwelt",
 };
 
 /**

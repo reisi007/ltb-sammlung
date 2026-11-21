@@ -259,6 +259,20 @@ foreach ($renamedAgain->collection('admin')['specials'] as $series) {
 }
 check('Umbenennung ist idempotent', $entenCount === 1);
 
+$store->createSeries('admin', 'LTB Sonderedition – Entenhausens Unterwelt');
+$store->addSeriesNumbers('admin', 'LTB Sonderedition – Entenhausens Unterwelt', [1]);
+$store->createSeries('admin', 'Entenhausens Unterwelt');
+$store->addSeriesNumbers('admin', 'Entenhausens Unterwelt', [2]);
+$unterwelt = new Store($databasePath, $seedPath);
+$unterweltSpecials = array_column($unterwelt->collection('admin')['specials'], null, 'name');
+$unterweltNumbers = $unterweltSpecials['Entenhausens Unterwelt']['numbers'] ?? [];
+sort($unterweltNumbers);
+check(
+    'Sonderedition wird auf die offizielle Kurzform migriert und zusammengefuehrt',
+    !isset($unterweltSpecials['LTB Sonderedition – Entenhausens Unterwelt'])
+        && $unterweltNumbers === [1, 2]
+);
+
 echo "Meta-Nachtrag\n";
 $legacyDb = new PDO('sqlite:' . $databasePath);
 $legacyDb->exec("DELETE FROM meta WHERE key = 'seed_synced_at'");
