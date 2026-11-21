@@ -7,7 +7,12 @@ Nummern-Übersicht (1 bis zur höchsten vorhandenen Nummer), getrennte Tabs für
 Sonderserien, Donald Duck und Panzerknacker & Co sowie eine Suche nach Nummer
 oder Titel.
 
-Live: <https://reisi007.github.io/ltb-sammlung/>
+Live: <https://ltb.all-the.rest/> (VPS, Basic-Auth mit dem Konto von
+`code.all-the.rest`).
+
+GitHub Pages wird über `.github/workflows/deploy.yml` ausgeliefert, sobald im
+Repo unter **Pages** die Quelle **GitHub Actions** eingestellt ist. Ohne diese
+Einstellung ist `https://reisi007.github.io/ltb-sammlung/` nicht erreichbar.
 
 ## Schnellstart
 
@@ -132,37 +137,28 @@ Alternativen, falls sich die Anforderungen ändern:
    GitHub Action. Maximale Kontrolle, erfordert aber einen eigenen Sync-/
    Auth-Schritt und ist für eine reine Leseansicht mehr Infrastruktur als nötig.
 
-## Schreibzugriff / OAuth (geplant)
+## Schreibzugriff (geplant)
 
 Bearbeiten ist in diesem Prototyp bewusst **nicht** implementiert. Der Button
-„Bearbeiten folgt“ ist deaktiviert; ein separates Issue soll den Schreibzugriff
-direkt auf das Google Sheet bringen – ohne eigene Datenbank.
+„Bearbeiten folgt“ ist deaktiviert. Statt Google OAuth wird der Schreibzugriff
+über die vorhandene Infrastruktur realisiert (Issue #2):
 
-Geplanter Weg:
-
-- **Google Identity Services Token-Client** im Browser mit dem Scope
-  `https://www.googleapis.com/auth/spreadsheets`.
-- **Client-ID** aus einem kostenlosen Google-Cloud-Projekt. Ein
-  Google-Business-Konto ist dafür nicht nötig.
-- OAuth-Zustimmungsbildschirm auf **„Testing“** stellen und die eigene
-  E-Mail-Adresse als Testnutzer eintragen.
-- **Authorized JavaScript Origins**: `http://localhost:5173` und
-  `https://reisi007.github.io`.
-- Der Token-Client liefert ein **Access-Token mit ca. 1 Stunde Laufzeit**.
-  Danach ist eine erneute Autorisierung nötig; der Browser-Flow liefert kein
-  Refresh-Token. Das Access-Token bleibt nur im Speicher und wird nicht
-  persistiert.
-- Der Hinweis „unverified app“ ist im Testing-Modus normal und erwartbar.
-- Es gibt **keinen** Client-Secret-Code im Frontend. Die Client-ID ist öffentlich.
-
-Die Datenzugriffsschicht ist dafür bereits vorbereitet:
-
-- `CollectionRepository` (`src/lib/repository.ts`) mit `load()` und
-  `capabilities.write`. Die App bekommt das Repository als Prop und liest
-  aktuell nur den lokalen Snapshot.
-- `WritableCollectionRepository` beschreibt den geplanten Schreibvertrag mit
-  `addLtbRow`, `updateLtbRow` und `removeLtbRow`. Doppelte Nummern werden über
-  `{ number, occurrence }` adressiert, damit die Zeilenidentität erhalten bleibt.
+- React bleibt das komplette Frontend; PHP wird nur eine schmale JSON-API über
+  SQLite (`/api/collection`, `/api/lookup`). PHP rendert keine UI und enthält
+  keine UI-Strings – Lingui bleibt die einzige i18n-Quelle.
+- SQLite liegt in einem Docker-Volume außerhalb des Web-Roots. Das Google Sheet
+  bleibt die initiale Datenquelle (Seed), danach ist SQLite die Wahrheit.
+- Caddy macht die Authentifizierung per `basic_auth` mit demselben User und
+  bcrypt-Hash wie `code.all-the.rest`; PHP vertraut nur dem von Caddy gesetzten
+  `X-Auth-User`-Header. Schreibende Requests brauchen einen Custom-Header als
+  CSRF-Schutz.
+- Deployment nach dem Muster des Projekts `form2email`: PHP-FPM-Container im
+  `webnet`, Compose in `deployment/`, Sync per rsync.
+- `CollectionRepository` (`src/lib/repository.ts`) bleibt die Abstraktion:
+  `/api/collection` zuerst, Snapshot `src/data/collection.json` als Fallback für
+  den statischen Betrieb. `WritableCollectionRepository` beschreibt bereits den
+  Schreibvertrag mit `addLtbRow`, `updateLtbRow` und `removeLtbRow`; doppelte
+  Nummern werden über `{ number, occurrence }` adressiert.
 
 ## Internationalisierung
 
@@ -227,6 +223,18 @@ Der Basispfad ist in `vite.config.ts` auf `/ltb-sammlung/` gesetzt und kann per
 `BASE_PATH` überschrieben werden. Für eine eigene Domain oder ein anderes
 Repository muss `BASE_PATH` entsprechend gesetzt werden.
 
+### Deployment auf ltb.all-the.rest
+
+`./deploy.sh` baut mit `BASE_PATH=/` und spiegelt `dist/` per rsync nach
+`/home/webadmin/websites/ltb.all-the.rest/` auf `root@reisinger.pictures`. Im
+`proxy-stack` ist dieser Pfad read-only unter `/srv/websites/ltb.all-the.rest`
+eingehängt; der Caddy-Block liegt im Repo `~/dev/caddyfile/Caddyfile` und nutzt
+das `spa`-Snippet. Der Zugang ist `basic_auth` mit demselben User und Hash wie
+`code.all-the.rest`. `./deploy.sh --dry-run` zeigt die Schritte ohne Upload.
+
+Voraussetzung: GNU-rsync (`brew install rsync`), SSH-Key für den Host und ein
+leeres Zielverzeichnis; das Script legt es mit den Rechten `1002:webgroup` an.
+
 ## Cover-Rechte
 
 Die Cover sind urheberrechtlich geschützt (© Disney/Egmont). Dieses Projekt
@@ -240,5 +248,5 @@ Google.
 - **QR-Scan**: Der Button ist ein deaktivierter Platzhalter. Geplant ist das
   Scannen einer Nummer per Kamera (z. B. BarcodeDetector/getUserMedia) mit
   anschließender Suche.
-- **Bearbeiten per Google OAuth**: siehe Abschnitt oben; eigener Commit und
-  Issue, kein halbfertiger OAuth-Code in diesem Prototyp.
+- **Bearbeiten**: PHP-API + SQLite hinter Caddy, siehe Abschnitt oben (Issue #2).
+  Kein halbfertiger OAuth-Code in diesem Prototyp.
