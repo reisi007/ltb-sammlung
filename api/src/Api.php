@@ -31,6 +31,10 @@ final class Api
         'Content-Type' => 'application/json; charset=utf-8',
         'Cache-Control' => 'no-store',
         'X-Content-Type-Options' => 'nosniff',
+        // Die API liefert nur JSON: keine Skripte, Styles oder Einbettungen.
+        // Einen eventuell von Caddy gesetzten CSP-Header schraenkt der Browser
+        // zusätzlich ein (Schnittmenge), er setzt ihn nicht ausser Kraft.
+        'Content-Security-Policy' => "default-src 'self'; img-src 'self' https: data:; script-src 'none'; style-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
     ];
 
     private ?Catalog $catalog = null;

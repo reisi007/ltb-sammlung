@@ -2,11 +2,52 @@ import tailwindcss from "@tailwindcss/vite";
 import { lingui } from "@lingui/vite-plugin";
 import react from "@vitejs/plugin-react";
 import { resolve } from "node:path";
-import { defineConfig } from "vite";
+import {
+  defineConfig,
+  type IndexHtmlTransformContext,
+  type Plugin,
+} from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 import pkg from "./package.json";
 
 const base = process.env.BASE_PATH ?? "/ltb-sammlung/";
+
+/**
+ * CSP als <meta>-Tag im Produktions-Build. `style-src 'unsafe-inline'` ist
+ * wegen der React-style-Attribute in Cover.tsx/SeriesCover.tsx noetig;
+ * `frame-ancestors` bleibt im Caddy-Header, Browser ignorieren es in <meta>.
+ */
+export const CSP_POLICY =
+  "default-src 'self'; img-src 'self' https: data:; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'";
+
+/**
+ * Der eigentliche Hook, damit er ohne DOM und ohne Plugin-Container testbar
+ * ist. Im Dev-Modus injiziert @vitejs/plugin-react ein Inline-Script fuer
+ * React Refresh; ein bundle === undefined kennzeichnet den Dev-Kontext, in
+ * dem die CSP nicht injiziert wird (sonst waere das Inline-Script blockiert).
+ */
+export function cspIndexHtmlHook(
+  html: string,
+  context: IndexHtmlTransformContext
+): string {
+  if (context.bundle === undefined) {
+    return html;
+  }
+
+  const meta = `<meta http-equiv="Content-Security-Policy" content="${CSP_POLICY}" />`;
+
+  return html.replace("</head>", `${meta}\n  </head>`);
+}
+
+export function cspMetaPlugin(): Plugin {
+  return {
+    name: "ltb-csp-meta",
+    transformIndexHtml: {
+      order: "post",
+      handler: cspIndexHtmlHook,
+    },
+  };
+}
 
 export default defineConfig({
   base,
@@ -87,5 +128,6 @@ export default defineConfig({
         ],
       },
     }),
+    cspMetaPlugin(),
   ],
 });

@@ -5,17 +5,50 @@
 # per FastCGI an. Benutzer und Sessions liegen in derselben SQLite-Datenbank
 # wie die Sammlung; ein externer Auth-Sidecar ist nicht mehr noetig.
 #
+# Haertung: ltb-php laeuft als www-data (82:82) ohne Capabilities, mit
+# no-new-privileges und read-only Rootfs; /tmp ist die einzige beschreibbare
+# Stelle. Der einmalige Init-Container (als root) berechtigt das Datenvolume
+# fuer den Deploy: Verzeichnis 0700, Datenbankdateien 0600. Danach kann der
+# PHP-Container nicht mehr chownen und nur noch /data beschreiben.
+#
+# Offen (Issue #27): PHP-FPM lauscht weiterhin im geteilten Netz `webnet`.
+# Andere Container koennen FastCGI direkt ansprechen und dabei REMOTE_ADDR
+# selbst setzen, was das IP-Login-Limit aushebelt. Die Isolation erfordert
+# eine Aenderung der Caddy-Konfiguration ausserhalb dieses Repos und ist
+# hier deshalb nicht umgesetzt.
+#
 # Der Quellcode liegt unter /home/webadmin/websites/ltb-api (nicht im
 # Web-Root), der Seed unter /home/webadmin/websites/ltb-seed. Die Datenbank
 # lebt im Volume `ltb_ltb_data` und überlebt Deploys.
 services:
+  ltb-init:
+    image: php:8.3-fpm-alpine
+    container_name: ltb-init
+    user: "0:0"
+    entrypoint: ["sh", "-c"]
+    command: >
+      mkdir -p /data && chown -R 82:82 /data && chmod 700 /data &&
+      find /data -maxdepth 1 -type f -exec chmod 600 {} +
+    volumes:
+      - ltb_data:/data
+    restart: "no"
+
   ltb-php:
     image: php:8.3-fpm-alpine
     container_name: ltb-php
     restart: unless-stopped
+    user: "82:82"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    # chown kann als Non-Root nicht laufen; das macht ltb-init vorab.
     command: >
-      sh -c "chown -R www-data:www-data /data &&
-      exec php-fpm -F -d expose_php=0 -d display_errors=0 -d log_errors=1"
+      sh -c "exec php-fpm -F -d expose_php=0 -d display_errors=0 -d log_errors=1"
+    depends_on:
+      ltb-init:
+        condition: service_completed_successfully
     environment:
       LTB_DB: /data/ltb.sqlite
       LTB_SEED: /srv/seed/collection.json

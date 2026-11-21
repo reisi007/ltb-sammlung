@@ -60,8 +60,27 @@ Backup-Prüfungen) wurden im Review umgesetzt.
   Für die lokale Entwicklung über `http` akzeptiert der Dev-Schalter
   `LTB_INSECURE_COOKIES=1` zusätzlich `http` als Schema.
 - `X-Content-Type-Options: nosniff`, `Cache-Control: no-store`,
-  `X-Frame-Options: DENY`, `Content-Security-Policy: frame-ancestors 'none'`,
-  HSTS über das gemeinsame Caddy-Snippet.
+  `X-Frame-Options: DENY`, HSTS über das gemeinsame Caddy-Snippet.
+- Echte CSP als Defense-in-Depth (es gab keine XSS-Senke wie
+  `dangerouslySetInnerHTML`/`innerHTML`/`eval`):
+  - HTML (`/`, `/login.html`): `default-src 'self'; img-src 'self' https:
+    data:; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'
+    data:; connect-src 'self'; object-src 'none'; base-uri 'self';
+    form-action 'self'` als `<meta http-equiv>`, **nur im Produktions-Build**
+    (`vite.config.ts`, `transformIndexHtml` bei `bundle !== undefined`). Im
+    Dev-Modus injiziert `@vitejs/plugin-react` ein Inline-Script für React
+    Refresh, das `script-src 'self'` blockieren würde. `style-src
+    'unsafe-inline'` ist wegen der React-`style`-Attribute in `Cover.tsx` und
+    `SeriesCover.tsx` nötig. `frame-ancestors` bleibt im Caddy-Header, Browser
+    ignorieren es in `<meta>`.
+  - JSON-API (`Api::HEADERS`): `default-src 'self'; img-src 'self' https:
+    data:; script-src 'none'; style-src 'none'; object-src 'none'; base-uri
+    'none'; frame-ancestors 'none'`. Die API liefert nur JSON, also keine
+    Skripte, Styles oder Einbettungen.
+  - **Offenes Gate:** Die Caddy-Konfiguration liegt außerhalb dieses Repos und
+    ist hier nicht verifizierbar. Setzt Caddy dort ebenfalls einen
+    CSP-Header, wenden Browser die Schnittmenge an; die Policies dürfen sich
+    nicht widersprechen. Das ist beim nächsten Caddy-Deploy zu prüfen.
 - `expose_php=0`; live ist kein `X-Powered-By` gesetzt.
 
 ## Daten und SQL
@@ -81,6 +100,20 @@ Backup-Prüfungen) wurden im Review umgesetzt.
 - PHP-Container nur im Docker-Netz `webnet`, keine veröffentlichten Ports,
   128 MB / 0,5 CPU, Healthcheck. Quellcode und Seed read-only eingehängt,
   Datenbank im Volume `ltb_ltb_data`.
+- Container-Härtung: `ltb-php` läuft als `www-data` (`82:82`) mit
+  `cap_drop: [ALL]`, `no-new-privileges`, `read_only: true` und einer 16 MB
+  großen tmpfs unter `/tmp`. Der vorbeschaltete Init-Container (`ltb-init`,
+  einmalig pro Deploy als root) legt `/data` mit `0700` an und setzt die
+  Datenbankdateien auf `0600`; danach braucht PHP kein `chown` mehr und das
+  FPM-Kommando ist entsprechend auf `exec php-fpm …` gekürzt.
+- `Store.php` setzt im Konstruktor `umask(0o077)` und stellt den alten Wert im
+  `finally` wieder her: neue DB-/WAL-/SHM-Dateien entstehen mit `0600`, neue
+  Verzeichnisse mit `0700`. Eine bereits vorhandene, weiterhin world-readable
+  DB wird hart auf `0600` korrigiert; schlägt das fehl, bricht der Start ab.
+- logrotate: `deploy/ltb-vacuum.logrotate` wird von `deploy.sh` idempotent nach
+  `/etc/logrotate.d/ltb-vacuum` (0644) installiert und erst nach erfolgreicher
+  Validierung mit `logrotate -d` aktiviert. Täglich, 14 Archive, komprimiert.
+  Fehlt `logrotate` oder ist die Config ungültig, endet der Deploy mit Fehler.
 - Backup: `deploy/ltb-vacuum.sh` läuft täglich 02:45 per Cron, schreibt
   `/var/backups/ltb/ltb-<Datum>.sqlite.gz` (14 Tage) und lädt sie per
   `rclone` nach `pCloud:Backup/strato-v2/db/ltb/`.
@@ -96,7 +129,9 @@ Backup-Prüfungen) wurden im Review umgesetzt.
 - Wiederherstellung: `ltb-<Datum>.sqlite.gz` entpacken, in das Volume
   `ltb_ltb_data` als `ltb.sqlite` legen (Container vorher stoppen), Container
   starten; WAL-Dateien entfernen. Die Datei ist eine vollständige
-  SQLite-Datenbank.
+  SQLite-Datenbank. Sie muss `82:82` gehören (`chown 82:82 ltb.sqlite` im
+  Volume); der Init-Container korrigiert das beim Start, aber `Store.php`
+  bricht fail-closed ab, falls das Nachbessern nicht möglich ist.
 - Die Sicherung enthält die Passwort-Hashes (bcrypt) und wird unverschlüsselt
   zum pCloud-Konto des Betreibers geladen. Das ist bewusst so: ohne `users`
   wäre ein Restore nicht vollständig. Der pCloud-Zugang ist entsprechend zu
@@ -189,9 +224,18 @@ Härtungen aus diesem Durchlauf, als Issues erfasst:
 - #26 (behoben): Der Dummy-Hash wird zur Laufzeit mit `PASSWORD_DEFAULT`
   erzeugt, `POST /api/logout` prüft den Origin und der Origin-Vergleich
   berücksichtigt das Schema.
-- #27 (weiter offen): Container als root ohne `cap_drop`/`no-new-privileges`/read-only
-  Rootfs, SQLite world-readable (0644), keine echte CSP, kein logrotate für
-  `/var/log/ltb-vacuum.log`.
+- #27 (Teile behoben): Container-Härtung (`82:82`, `cap_drop`,
+  `no-new-privileges`, read-only + tmpfs, Init-Container für `/data`), SQLite
+  `0600`/`0700` inklusive umask-Absicherung in `Store.php`, echte CSP
+  (Produktions-Build-Meta für HTML, Header für die API) und logrotate für
+  `/var/log/ltb-vacuum.log` sind umgesetzt und lokal geprüft.
+  - **Weiter offen:** Netz-Isolation. PHP-FPM lauscht im geteilten `webnet`;
+    andere Container können FastCGI direkt ansprechen und dabei `REMOTE_ADDR`
+    selbst setzen, womit das IP-Login-Limit ausgehebelt wird. Das erfordert
+    eine Caddy-Konfigurationsänderung außerhalb dieses Repos und ist hier
+    bewusst nicht umgesetzt. Issue #27 bleibt deshalb offen.
+  - **Gate:** Die Caddy-Konfiguration ist hier nicht verifizierbar; ein dort
+    gesetzter CSP-Header überschneidet sich mit dem API-Header (Schnittmenge).
 - Bewusst akzeptiert: das Google Sheet ist öffentlich per Link; der Login
   schützt die API-Kopie, nicht die Sheet-Quelle. `meta.sheetId`/`sheetUrl`
   bleiben global.

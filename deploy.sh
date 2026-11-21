@@ -58,8 +58,9 @@ if [[ "$DRY_RUN" == true ]]; then
   echo "  4. rsync ${RSYNC_FLAGS[*]} ./dist/ $REMOTE"
   echo "  5. rsync ./api/ $API_REMOTE und src/data/{collection,catalog}.json nach $SEED_REMOTE"
   echo "  6. compose.yaml nach $STACK_DIR und 'docker compose up -d'"
-  echo "  7. curl / (302 auf /login.html), /api/health (ok) und /api/collection (401)"
-  echo "  8. Login ueber die API, danach muessen meta.source=sqlite und LTB-Zeilen vorhanden sein"
+  echo "  7. logrotate-Konfiguration nach /etc/logrotate.d/ltb-vacuum installieren und mit logrotate -d validieren"
+  echo "  8. curl / (200 App-Huelle), /api/health (ok) und /api/collection (401)"
+  echo "  9. Login ueber die API, danach muessen meta.source=sqlite und LTB-Zeilen vorhanden sein"
   exit 0
 fi
 
@@ -136,6 +137,32 @@ echo "Installiere den PHP-Stack und starte ihn ..."
   --archive --chmod=F644 --rsh="ssh $SSH_OPTS"
 ssh $SSH_OPTS -T root@reisinger.pictures \
   "cd $STACK_DIR && docker compose up -d --remove-orphans"
+
+# logrotate für /var/log/ltb-vacuum.log. Idempotent: die Datei wird bei jedem
+# Deploy neu geschrieben. Fail-closed: fehlt logrotate oder lehnt -d die
+# Konfiguration ab, gibt es keinen gruenen Deploy. Erst nach erfolgreicher
+# Pruefung wird die Datei an ihren endgueltigen Platz verschoben.
+echo "Installiere und validiere die logrotate-Konfiguration ..."
+if ! ssh $SSH_OPTS -T root@reisinger.pictures \
+    "command -v logrotate >/dev/null 2>&1"; then
+  echo "FEHLER: logrotate fehlt auf dem Host — kein Deploy." >&2
+  exit 1
+fi
+if ! "$RSYNC_BIN" ./deploy/ltb-vacuum.logrotate \
+    root@reisinger.pictures:/etc/logrotate.d/ltb-vacuum.next \
+    --archive --chmod=F644 --rsh="ssh $SSH_OPTS"; then
+  echo "FEHLER: logrotate-Konfiguration konnte nicht uebertragen werden." >&2
+  exit 1
+fi
+if ! ssh $SSH_OPTS -T root@reisinger.pictures \
+    "logrotate -d /etc/logrotate.d/ltb-vacuum.next >/dev/null 2>&1 &&
+     mv -f /etc/logrotate.d/ltb-vacuum.next /etc/logrotate.d/ltb-vacuum"; then
+  echo "FEHLER: logrotate -d lehnt die Konfiguration ab — kein Deploy." >&2
+  ssh $SSH_OPTS -T root@reisinger.pictures \
+    "rm -f /etc/logrotate.d/ltb-vacuum.next" || true
+  exit 1
+fi
+echo "logrotate-Konfiguration installiert (0644) und mit logrotate -d validiert"
 
 echo "Lege den Benutzer an, falls er noch fehlt ..."
 users="$(ssh $SSH_OPTS -T root@reisinger.pictures \

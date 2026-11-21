@@ -46,21 +46,41 @@ final class Store
     {
         $directory = dirname($databasePath);
 
-        if (!is_dir($directory) && !mkdir($directory, 0o775, true) && !is_dir($directory)) {
-            throw new RuntimeException("Datenverzeichnis nicht beschreibbar: {$directory}");
-        }
+        // SQLite erzeugt DB, WAL und SHM mit 0666 & ~umask. Mit 077 entstehen
+        // 0600-Dateien und 0700-Verzeichnisse; der alte Umask wird immer
+        // wiederhergestellt, damit andere Codepfade unberuehrt bleiben.
+        $previousUmask = umask(0o077);
 
-        $this->db = new PDO('sqlite:' . $databasePath, null, null, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        ]);
-        $this->db->exec('PRAGMA journal_mode = WAL');
-        $this->db->exec('PRAGMA busy_timeout = 5000');
-        $this->migrate();
-        $this->seedIfEmpty();
-        $this->migrateSeriesNames();
-        $this->backfillSeedSyncedAt();
-        $this->purgeExpiredSessions();
+        try {
+            if (!is_dir($directory) && !mkdir($directory, 0o700, true) && !is_dir($directory)) {
+                throw new RuntimeException("Datenverzeichnis nicht beschreibbar: {$directory}");
+            }
+
+            $this->db = new PDO('sqlite:' . $databasePath, null, null, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            ]);
+            $this->db->exec('PRAGMA journal_mode = WAL');
+            $this->db->exec('PRAGMA busy_timeout = 5000');
+
+            // Bereits vorhandene, world-readable DB-Dateien duerfen nicht
+            // still weiterbestehen — das betrifft auch WAL und SHM, die ein
+            // Restore oder ein alter Container mit 0644 hinterlassen kann.
+            // Fehlt das Recht zum Nachbessern, bricht der Start ab.
+            foreach ([$databasePath, $databasePath . '-wal', $databasePath . '-shm'] as $dbFile) {
+                if (is_file($dbFile) && !@chmod($dbFile, 0o600)) {
+                    throw new RuntimeException("Datenbankdatei nicht absicherbar: {$dbFile}");
+                }
+            }
+
+            $this->migrate();
+            $this->seedIfEmpty();
+            $this->migrateSeriesNames();
+            $this->backfillSeedSyncedAt();
+            $this->purgeExpiredSessions();
+        } finally {
+            umask($previousUmask);
+        }
     }
 
     private function migrate(): void
