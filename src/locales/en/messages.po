@@ -72,16 +72,16 @@ msgstr "{count} rows"
 msgid "Abbrechen"
 msgstr "Cancel"
 
-#: src/App.tsx:712
+#: src/App.tsx:718
 msgid "Band"
 msgstr "Volume"
 
-#: src/App.tsx:665
+#: src/App.tsx:671
 msgid "Band hinzufügen"
 msgstr "Add volume"
 
 #. placeholder {0}: series.name
-#: src/App.tsx:695
+#: src/App.tsx:701
 msgid "Band zu {0} hinzufügen"
 msgstr "Add volume to {0}"
 
@@ -103,7 +103,7 @@ msgstr "Add volumes"
 msgid "Bekannt: {0}"
 msgstr "Known: {0}"
 
-#: src/App.tsx:474
+#: src/App.tsx:476
 msgid "Bereiche"
 msgstr "Sections"
 
@@ -140,11 +140,11 @@ msgstr "Cover of LTB No. {number}"
 msgid "Cover: © Disney/Egmont. Die Rechte liegen bei den jeweiligen Rechteinhabern; Cover werden nur verlinkt, nicht gehostet."
 msgstr "Covers: © Disney/Egmont. All rights remain with their respective owners; covers are only linked, not hosted."
 
-#: src/App.tsx:920
+#: src/App.tsx:926
 msgid "Daten konnten nicht geladen werden."
 msgstr "Data could not be loaded."
 
-#: src/App.tsx:911
+#: src/App.tsx:917
 msgid "Daten werden geladen…"
 msgstr "Loading data…"
 
@@ -160,13 +160,13 @@ msgstr "The name is longer than 60 characters."
 msgid "Deutsch"
 msgstr "German"
 
-#: src/App.tsx:531
+#: src/App.tsx:537
 msgid "Diese Nummern sind mit mehr als einem Exemplar erfasst. Ein Klick filtert die Liste."
 msgstr "These numbers have more than one copy. Click one to filter the list."
 
 #: src/App.tsx:277
 #: src/App.tsx:339
-#: src/App.tsx:734
+#: src/App.tsx:740
 msgid "Donald Duck"
 msgstr "Donald Duck"
 
@@ -178,12 +178,12 @@ msgstr "Duckipedia issue list"
 msgid "Duckipedia Covergalerie"
 msgstr "Duckipedia cover gallery"
 
-#: src/App.tsx:737
-#: src/App.tsx:756
+#: src/App.tsx:743
+#: src/App.tsx:762
 msgid "Eigene Reihe mit eigenen Nummern."
 msgstr "Separate series with its own numbers."
 
-#: src/App.tsx:595
+#: src/App.tsx:601
 msgid "Eigene Reihen mit eigenen Nummern, getrennt von den LTB-Nummern."
 msgstr "Separate series with their own numbers, independent of the LTB issues."
 
@@ -249,7 +249,7 @@ msgstr "No LTB number was found in the scan."
 msgid "Im Scan war keine Nummer erkennbar."
 msgstr "No number was found in the scan."
 
-#: src/App.tsx:504
+#: src/App.tsx:510
 msgid "Jede Zeile ist ein eigener Eintrag. „Enthalten in“ ist eine freie Notiz, keine Verknüpfung."
 msgstr "Each row is a separate entry. “Contained in” is a free-form note, not a link."
 
@@ -277,15 +277,15 @@ msgstr "No title recorded"
 msgid "Keine Einträge für diese Suche."
 msgstr "No entries for this search."
 
-#: src/App.tsx:560
+#: src/App.tsx:566
 msgid "Keine LTB-Ausgaben erfasst."
 msgstr "No LTB issues recorded."
 
-#: src/App.tsx:562
+#: src/App.tsx:568
 msgid "Keine LTB-Ausgaben für „{query}“ gefunden."
 msgstr "No LTB issues found for “{query}”."
 
-#: src/App.tsx:638
+#: src/App.tsx:644
 msgid "Keine Sonderserien für diese Suche gefunden."
 msgstr "No special series found for this search."
 
@@ -311,11 +311,11 @@ msgstr "LTB Collection"
 msgid "mehrfach erfasst"
 msgstr "recorded multiple times"
 
-#: src/App.tsx:525
+#: src/App.tsx:531
 msgid "Mehrfach vorhanden"
 msgstr "Multiple copies"
 
-#: src/App.tsx:501
+#: src/App.tsx:507
 msgid "Meine LTB-Ausgaben"
 msgstr "My LTB issues"
 
@@ -382,7 +382,7 @@ msgstr "Official LTB website"
 
 #: src/App.tsx:278
 #: src/App.tsx:350
-#: src/App.tsx:753
+#: src/App.tsx:759
 msgid "Panzerknacker & Co"
 msgstr "Beagle Boys & Co"
 
@@ -407,7 +407,7 @@ msgstr "Series"
 msgid "Reihe auswählen oder neu anlegen und bis zu {MAX_ADD_ITEMS} Bände eintragen. Bereits vorhandene Bände werden übersprungen."
 msgstr "Pick a series or create a new one and enter up to {MAX_ADD_ITEMS} volumes. Volumes that already exist are skipped."
 
-#: src/App.tsx:610
+#: src/App.tsx:616
 msgid "Reihe hinzufügen"
 msgstr "Add series"
 
@@ -435,8 +435,8 @@ msgstr "Add special series"
 
 #: src/App.tsx:276
 #: src/App.tsx:328
-#: src/App.tsx:592
-#: src/App.tsx:616
+#: src/App.tsx:598
+#: src/App.tsx:622
 msgid "Sonderserien"
 msgstr "Special series"
 

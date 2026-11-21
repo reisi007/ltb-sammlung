@@ -471,7 +471,11 @@ function CollectionView({
         </div>
       </section>
 
-      <div role="tablist" aria-label={t`Bereiche`} className="tabs tabs-border">
+      <div
+        role="tablist"
+        aria-label={t`Bereiche`}
+        className="tabs tabs-border flex-nowrap overflow-x-auto"
+      >
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -480,7 +484,9 @@ function CollectionView({
             id={`tab-${tab.id}`}
             aria-selected={activeTab === tab.id}
             aria-controls={`panel-${tab.id}`}
-            className={activeTab === tab.id ? "tab tab-active" : "tab"}
+            className={`tab whitespace-nowrap ${
+              activeTab === tab.id ? "tab-active" : ""
+            }`}
             onClick={() => onTabChange(tab.id)}
           >
             {tab.label}

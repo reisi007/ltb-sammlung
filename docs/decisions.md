@@ -124,6 +124,7 @@ Caddy-Block plus Container; die Login-Seite und die API-Pfade bleiben gleich.
 
 - Eigener Auth-Dienst für mehrere Nutzer (users/sessions, `owner` pro Zeile).
   Die PHP-API und SQLite stehen bereits; der Wechsel ist ein Caddy-Block plus
-  Container. Dafür ist noch kein Ticket angelegt.
+  Container — siehe Issue #10.
+- ISBN/EAN vom Cover auf die LTB-Nummer abbilden (Scanner) — Issue #11.
 - Optional: Bearbeiten/Löschen in der Oberfläche (die API kann beides schon)
   und die Rücksynchronisation ins Google Sheet (bewusst nicht vorgesehen).

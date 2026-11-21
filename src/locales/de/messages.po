@@ -72,16 +72,16 @@ msgstr "{count} Zeilen"
 msgid "Abbrechen"
 msgstr "Abbrechen"
 
-#: src/App.tsx:712
+#: src/App.tsx:718
 msgid "Band"
 msgstr "Band"
 
-#: src/App.tsx:665
+#: src/App.tsx:671
 msgid "Band hinzufügen"
 msgstr "Band hinzufügen"
 
 #. placeholder {0}: series.name
-#: src/App.tsx:695
+#: src/App.tsx:701
 msgid "Band zu {0} hinzufügen"
 msgstr "Band zu {0} hinzufügen"
 
@@ -103,7 +103,7 @@ msgstr "Bände hinzufügen"
 msgid "Bekannt: {0}"
 msgstr "Bekannt: {0}"
 
-#: src/App.tsx:474
+#: src/App.tsx:476
 msgid "Bereiche"
 msgstr "Bereiche"
 
@@ -140,11 +140,11 @@ msgstr "Cover von LTB Nr. {number}"
 msgid "Cover: © Disney/Egmont. Die Rechte liegen bei den jeweiligen Rechteinhabern; Cover werden nur verlinkt, nicht gehostet."
 msgstr "Cover: © Disney/Egmont. Die Rechte liegen bei den jeweiligen Rechteinhabern; Cover werden nur verlinkt, nicht gehostet."
 
-#: src/App.tsx:920
+#: src/App.tsx:926
 msgid "Daten konnten nicht geladen werden."
 msgstr "Daten konnten nicht geladen werden."
 
-#: src/App.tsx:911
+#: src/App.tsx:917
 msgid "Daten werden geladen…"
 msgstr "Daten werden geladen…"
 
@@ -160,13 +160,13 @@ msgstr "Der Name ist länger als 60 Zeichen."
 msgid "Deutsch"
 msgstr "Deutsch"
 
-#: src/App.tsx:531
+#: src/App.tsx:537
 msgid "Diese Nummern sind mit mehr als einem Exemplar erfasst. Ein Klick filtert die Liste."
 msgstr "Diese Nummern sind mit mehr als einem Exemplar erfasst. Ein Klick filtert die Liste."
 
 #: src/App.tsx:277
 #: src/App.tsx:339
-#: src/App.tsx:734
+#: src/App.tsx:740
 msgid "Donald Duck"
 msgstr "Donald Duck"
 
@@ -178,12 +178,12 @@ msgstr "Duckipedia Ausgabenliste"
 msgid "Duckipedia Covergalerie"
 msgstr "Duckipedia Covergalerie"
 
-#: src/App.tsx:737
-#: src/App.tsx:756
+#: src/App.tsx:743
+#: src/App.tsx:762
 msgid "Eigene Reihe mit eigenen Nummern."
 msgstr "Eigene Reihe mit eigenen Nummern."
 
-#: src/App.tsx:595
+#: src/App.tsx:601
 msgid "Eigene Reihen mit eigenen Nummern, getrennt von den LTB-Nummern."
 msgstr "Eigene Reihen mit eigenen Nummern, getrennt von den LTB-Nummern."
 
@@ -249,7 +249,7 @@ msgstr "Im Scan war keine LTB-Nummer erkennbar."
 msgid "Im Scan war keine Nummer erkennbar."
 msgstr "Im Scan war keine Nummer erkennbar."
 
-#: src/App.tsx:504
+#: src/App.tsx:510
 msgid "Jede Zeile ist ein eigener Eintrag. „Enthalten in“ ist eine freie Notiz, keine Verknüpfung."
 msgstr "Jede Zeile ist ein eigener Eintrag. „Enthalten in“ ist eine freie Notiz, keine Verknüpfung."
 
@@ -277,15 +277,15 @@ msgstr "Kein Titel erfasst"
 msgid "Keine Einträge für diese Suche."
 msgstr "Keine Einträge für diese Suche."
 
-#: src/App.tsx:560
+#: src/App.tsx:566
 msgid "Keine LTB-Ausgaben erfasst."
 msgstr "Keine LTB-Ausgaben erfasst."
 
-#: src/App.tsx:562
+#: src/App.tsx:568
 msgid "Keine LTB-Ausgaben für „{query}“ gefunden."
 msgstr "Keine LTB-Ausgaben für „{query}“ gefunden."
 
-#: src/App.tsx:638
+#: src/App.tsx:644
 msgid "Keine Sonderserien für diese Suche gefunden."
 msgstr "Keine Sonderserien für diese Suche gefunden."
 
@@ -311,11 +311,11 @@ msgstr "LTB-Sammlung"
 msgid "mehrfach erfasst"
 msgstr "mehrfach erfasst"
 
-#: src/App.tsx:525
+#: src/App.tsx:531
 msgid "Mehrfach vorhanden"
 msgstr "Mehrfach vorhanden"
 
-#: src/App.tsx:501
+#: src/App.tsx:507
 msgid "Meine LTB-Ausgaben"
 msgstr "Meine LTB-Ausgaben"
 
@@ -382,7 +382,7 @@ msgstr "Offizielle LTB-Seite"
 
 #: src/App.tsx:278
 #: src/App.tsx:350
-#: src/App.tsx:753
+#: src/App.tsx:759
 msgid "Panzerknacker & Co"
 msgstr "Panzerknacker & Co"
 
@@ -407,7 +407,7 @@ msgstr "Reihe"
 msgid "Reihe auswählen oder neu anlegen und bis zu {MAX_ADD_ITEMS} Bände eintragen. Bereits vorhandene Bände werden übersprungen."
 msgstr "Reihe auswählen oder neu anlegen und bis zu {MAX_ADD_ITEMS} Bände eintragen. Bereits vorhandene Bände werden übersprungen."
 
-#: src/App.tsx:610
+#: src/App.tsx:616
 msgid "Reihe hinzufügen"
 msgstr "Reihe hinzufügen"
 
@@ -435,8 +435,8 @@ msgstr "Sonderserie hinzufügen"
 
 #: src/App.tsx:276
 #: src/App.tsx:328
-#: src/App.tsx:592
-#: src/App.tsx:616
+#: src/App.tsx:598
+#: src/App.tsx:622
 msgid "Sonderserien"
 msgstr "Sonderserien"
 

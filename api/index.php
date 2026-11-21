@@ -85,10 +85,9 @@ function read_json_body(): array
 
 function authenticated_user(): string
 {
-    // Caddy setzt bei FastCGI den CGI-Parameter REMOTE_USER; kommt der Wert
-    // als HTTP-Header (copy_headers), heisst er HTTP_REMOTE_USER.
-    // Nur der von Caddy gesetzte CGI-Parameter zaehlt. Ein HTTP-Header
-    // waere vom Client setzbar und damit kein Auth-Nachweis.
+    // Caddy setzt bei FastCGI den CGI-Parameter REMOTE_USER. Nur dieser Wert
+    // zaehlt; ein HTTP-Header waere vom Client setzbar und damit kein
+    // Auth-Nachweis.
     $user = trim((string) ($_SERVER['REMOTE_USER'] ?? ''));
 
     if ($user === '') {
@@ -179,15 +178,17 @@ try {
         assert_same_origin();
         $body = read_json_body();
         $name = validate_series_name($body['name'] ?? null);
+        // Erst validieren, dann schreiben: ein 422 darf keine leere Reihe
+        // hinterlassen.
+        $numbers = array_key_exists('numbers', $body)
+            ? validate_series_numbers($body['numbers'])
+            : null;
         $name = $collectionStore->createSeries($name);
         $added = 0;
         $skipped = 0;
 
-        if (array_key_exists('numbers', $body)) {
-            $result = $collectionStore->addSeriesNumbers(
-                $name,
-                validate_series_numbers($body['numbers'])
-            );
+        if ($numbers !== null) {
+            $result = $collectionStore->addSeriesNumbers($name, $numbers);
             $added = $result['added'];
             $skipped = $result['skipped'];
         }

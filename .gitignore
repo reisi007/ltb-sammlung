@@ -16,3 +16,7 @@ src/locales/**/messages.mjs
 
 # Codegraph-Index ist lokal (codegraph init).
 .codegraph/
+
+# Playwright-Artefakte (Screenshots, Reports)
+test-results/
+playwright-report/

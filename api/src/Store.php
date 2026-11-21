@@ -32,6 +32,7 @@ final class Store
         $this->db->exec('PRAGMA busy_timeout = 5000');
         $this->migrate();
         $this->seedIfEmpty();
+        $this->backfillSeedSyncedAt();
     }
 
     private function migrate(): void
@@ -143,6 +144,39 @@ final class Store
         }
     }
 
+    /**
+     * Datenbanken, die vor der Trennung von `syncedAt`/`updatedAt` angelegt
+     * wurden, kennen nur `seeded_at`. Ohne Nachtrag wuerde `syncedAt` bei
+     * jedem Aufruf die aktuelle Zeit liefern. Deshalb einmalig den echten
+     * Sheet-Zeitpunkt aus dem Seed uebernehmen, sonst den Seed-Zeitpunkt.
+     */
+    private function backfillSeedSyncedAt(): void
+    {
+        if ($this->meta('seed_synced_at') !== null) {
+            return;
+        }
+
+        $seededAt = $this->meta('seeded_at');
+
+        if ($seededAt === null) {
+            return;
+        }
+
+        $syncedAt = $seededAt;
+
+        if (is_file($this->seedPath)) {
+            $raw = file_get_contents($this->seedPath);
+            $seed = $raw === false ? null : json_decode($raw, true);
+            $fromSeed = is_array($seed) ? ($seed['meta']['syncedAt'] ?? null) : null;
+
+            if (is_string($fromSeed) && trim($fromSeed) !== '') {
+                $syncedAt = $fromSeed;
+            }
+        }
+
+        $this->setMeta('seed_synced_at', $syncedAt);
+    }
+
     private function meta(string $key): ?string
     {
         $statement = $this->db->prepare('SELECT value FROM meta WHERE key = ?');
@@ -194,7 +228,9 @@ final class Store
                 'sheetId' => $this->meta('sheet_id') ?? '',
                 'sheetUrl' => $this->meta('sheet_url') ?? '',
                 // Zeitpunkt des Sheet-Imports (nicht der letzten Schreiboperation).
-                'syncedAt' => $this->meta('seed_synced_at') ?? gmdate('c'),
+                'syncedAt' => $this->meta('seed_synced_at')
+                    ?? $this->meta('seeded_at')
+                    ?? gmdate('c'),
                 'updatedAt' => $lastWrite === false || $lastWrite === null
                     ? gmdate('c')
                     : (string) $lastWrite,

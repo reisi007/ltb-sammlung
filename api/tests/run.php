@@ -76,6 +76,10 @@ check('behält die freie Notiz', $collection['ltb'][0]['containedIn'] === 'MM 4'
 check('liefert Sonderserien getrennt', count($collection['specials']) === 2);
 check('leere Sonderserie bleibt erhalten', $collection['specials'][1]['numbers'] === []);
 check('Meta kommt aus dem Seed', $collection['meta']['sheetId'] === 'sheet-id');
+check(
+    'syncedAt ist der Seed-Zeitpunkt',
+    $collection['meta']['syncedAt'] === '2026-01-01T00:00:00+00:00'
+);
 
 echo "Hinzufügen\n";
 $store->addLtbRows([
@@ -166,6 +170,21 @@ expect_validation_error('lehnt Text als Reihen-Band ab', 422, static fn () => va
 echo "Persistenz\n";
 $second = new Store($databasePath, $seedPath);
 check('zweiter Start seedet nicht erneut', count($second->collection()['ltb']) === 4);
+
+echo "Meta-Nachtrag\n";
+$legacyDb = new PDO('sqlite:' . $databasePath);
+$legacyDb->exec("DELETE FROM meta WHERE key = 'seed_synced_at'");
+unset($legacyDb);
+$migrated = new Store($databasePath, $seedPath);
+check(
+    'alte Datenbank bekommt syncedAt aus dem Seed statt der aktuellen Zeit',
+    $migrated->collection()['meta']['syncedAt'] === '2026-01-01T00:00:00+00:00'
+);
+$again = new Store($databasePath, $seedPath);
+check(
+    'zweiter Start aendert das nachgetragene syncedAt nicht',
+    $again->collection()['meta']['syncedAt'] === '2026-01-01T00:00:00+00:00'
+);
 
 array_map('unlink', glob($workDir . '/*') ?: []);
 rmdir($workDir);
