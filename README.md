@@ -128,7 +128,8 @@ Alternativen, falls sich die Anforderungen ändern:
 2. **Google Sheets API** mit einem kostenlosen Google-Cloud-Projekt und einem
    API-Key: für öffentliche Sheets lesend möglich, ohne OAuth. Bei einer
    statischen Seite muss der Key auf die erlaubten Referrer beschränkt werden
-   (z. B. `reisi007.github.io` und `localhost:5173`). Quoten und Key-Sichtbarkeit
+   (z. B. `reisi007.github.io`, `ltb.all-the.rest` und `localhost:5173`).
+   Quoten und Key-Sichtbarkeit
    bleiben ein Risiko.
 3. **Google Apps Script als Web-App**: `doGet` liefert CSV/JSON, Deployment als
    „Jeder“. Kein API-Key nötig; Schreibzugriff lässt sich später mit
@@ -232,8 +233,11 @@ eingehängt; der Caddy-Block liegt im Repo `~/dev/caddyfile/Caddyfile` und nutzt
 das `spa`-Snippet. Der Zugang ist `basic_auth` mit demselben User und Hash wie
 `code.all-the.rest`. `./deploy.sh --dry-run` zeigt die Schritte ohne Upload.
 
-Voraussetzung: GNU-rsync (`brew install rsync`), SSH-Key für den Host und ein
-leeres Zielverzeichnis; das Script legt es mit den Rechten `1002:webgroup` an.
+Voraussetzung: GNU-rsync ≥ 3.1 (`brew install rsync`) und ein SSH-Key für den
+Host. Das Script legt das Zielverzeichnis bei Bedarf an (`1002:webgroup`, Modus
+`2755`), prüft vor dem Upload, dass `dist/index.html` den Root-Basispfad
+`/assets/` verwendet, und testet nach dem Sync `https://ltb.all-the.rest/`
+(ohne Zugangsdaten erwartet: `401`).
 
 ## Cover-Rechte
 
