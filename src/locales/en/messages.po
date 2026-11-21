@@ -67,7 +67,7 @@ msgstr "{count} row"
 msgid "{count} Zeilen"
 msgstr "{count} rows"
 
-#: src/components/AddSeriesDialog.tsx:263
+#: src/components/AddSeriesDialog.tsx:288
 #: src/components/AddVolumesDialog.tsx:536
 #: src/components/QrScanner.tsx:193
 msgid "Abbrechen"
@@ -99,6 +99,10 @@ msgstr "Add volume to {0}"
 msgid "Bände hinzufügen"
 msgstr "Add volumes"
 
+#: src/components/AddSeriesDialog.tsx:260
+msgid "Bekannt:"
+msgstr "Known:"
+
 #. placeholder {0}: known.title
 #: src/components/AddVolumesDialog.tsx:493
 msgid "Bekannt: {0}"
@@ -118,9 +122,9 @@ msgstr "Already owned {owned}×"
 
 #: src/components/AddVolumesDialog.tsx:272
 msgid "Bis zu 200 Bände auf einmal. Mehrere Nummern mit Komma, Semikolon oder Zeilenumbruch trennen; unbekannte Nummern und doppelte Exemplare sind erlaubt."
-msgstr ""
+msgstr "Up to 200 volumes at once. Separate multiple numbers with commas, semicolons or line breaks; unknown numbers and duplicate copies are allowed."
 
-#: src/components/AddSeriesDialog.tsx:90
+#: src/components/AddSeriesDialog.tsx:101
 msgid "Bitte 1 bis {MAX_ADD_ITEMS} gültige Nummern eingeben."
 msgstr "Please enter 1 to {MAX_ADD_ITEMS} valid numbers."
 
@@ -128,7 +132,7 @@ msgstr "Please enter 1 to {MAX_ADD_ITEMS} valid numbers."
 msgid "Bitte eine gültige LTB-Nummer eingeben."
 msgstr "Please enter a valid LTB number."
 
-#: src/components/AddSeriesDialog.tsx:75
+#: src/components/AddSeriesDialog.tsx:81
 msgid "Bitte einen Namen für die Sonderserie eingeben."
 msgstr "Please enter a name for the special series."
 
@@ -161,7 +165,7 @@ msgstr "Loading data…"
 msgid "Datenquellen"
 msgstr "Data sources"
 
-#: src/components/AddSeriesDialog.tsx:80
+#: src/components/AddSeriesDialog.tsx:86
 msgid "Der Name ist länger als 60 Zeichen."
 msgstr "The name is longer than 60 characters."
 
@@ -220,7 +224,7 @@ msgstr "Contained in"
 msgid "Enthalten in (optional)"
 msgstr "Contained in (optional)"
 
-#: src/components/AddSeriesDialog.tsx:89
+#: src/components/AddSeriesDialog.tsx:100
 #: src/components/AddVolumesDialog.tsx:77
 msgid "Es sind höchstens {MAX_ADD_ITEMS} Bände pro Vorgang möglich."
 msgstr "At most {MAX_ADD_ITEMS} volumes per submission."
@@ -264,7 +268,7 @@ msgstr "At most {MAX_SEARCH_NUMBERS} numbers at once; any remaining are ignored.
 msgid "Im Scan war keine LTB-Nummer oder ISBN erkennbar."
 msgstr "No LTB number or ISBN was found in the scan."
 
-#: src/components/AddSeriesDialog.tsx:143
+#: src/components/AddSeriesDialog.tsx:154
 msgid "Im Scan war keine Nummer erkennbar."
 msgstr "No number was found in the scan."
 
@@ -338,7 +342,13 @@ msgstr "My LTB issues"
 msgid "Meine Lustiges-Taschenbuch-Sammlung"
 msgstr "My Lustiges Taschenbuch collection"
 
-#: src/components/AddSeriesDialog.tsx:245
+#. placeholder {0}: invalidTokens.join(", ")
+#: src/components/AddSeriesDialog.tsx:91
+#: src/components/AddSeriesDialog.tsx:273
+msgid "Nicht gelesen: {0}"
+msgstr "Not read: {0}"
+
+#: src/components/AddSeriesDialog.tsx:257
 #: src/components/AddVolumesDialog.tsx:497
 msgid "Nicht im Katalog"
 msgstr "Not in the catalog"
@@ -372,9 +382,9 @@ msgstr "Numbers"
 #~ msgid "Nummern (bis zu {MAX_ADD_ITEMS}, durch Komma getrennt)"
 #~ msgstr "Numbers (up to {MAX_ADD_ITEMS}, comma-separated)"
 
-#: src/components/AddSeriesDialog.tsx:193
+#: src/components/AddSeriesDialog.tsx:204
 msgid "Nummern (bis zu {MAX_ADD_ITEMS}; Komma, Semikolon oder Zeilenumbruch)"
-msgstr ""
+msgstr "Numbers (up to {MAX_ADD_ITEMS}; comma, semicolon or line break)"
 
 #: src/App.tsx:444
 msgid "Nummern (bis zu 3) oder Titel suchen"
@@ -406,16 +416,16 @@ msgstr "Beagle Boys & Co"
 msgid "QR-Code oder Barcode in den Rahmen halten."
 msgstr "Hold the QR code or barcode inside the frame."
 
-#: src/components/AddSeriesDialog.tsx:210
+#: src/components/AddSeriesDialog.tsx:221
 #: src/components/AddVolumesDialog.tsx:427
 msgid "QR-Code scannen"
 msgstr "Scan QR code"
 
-#: src/components/AddSeriesDialog.tsx:165
+#: src/components/AddSeriesDialog.tsx:176
 msgid "Reihe"
 msgstr "Series"
 
-#: src/components/AddSeriesDialog.tsx:130
+#: src/components/AddSeriesDialog.tsx:141
 msgid "Reihe eingeben oder aus den Vorschlägen wählen und bis zu {MAX_ADD_ITEMS} Bände eintragen. Bereits vorhandene Bände werden übersprungen."
 msgstr "Enter a series or pick one from the suggestions, then add up to {MAX_ADD_ITEMS} volumes. Volumes that already exist are skipped."
 
@@ -428,7 +438,7 @@ msgstr "Add series"
 msgid "Sammlung synchronisiert: {0}"
 msgstr "Collection synced: {0}"
 
-#: src/components/AddSeriesDialog.tsx:286
+#: src/components/AddSeriesDialog.tsx:316
 #: src/components/AddVolumesDialog.tsx:555
 msgid "Schließen"
 msgstr "Close"
@@ -437,7 +447,7 @@ msgstr "Close"
 msgid "Schreiben ist ohne API nicht möglich (nur Lesezugriff)."
 msgstr "Writing requires the API (read-only otherwise)."
 
-#: src/components/AddSeriesDialog.tsx:127
+#: src/components/AddSeriesDialog.tsx:138
 msgid "Sonderserie hinzufügen"
 msgstr "Add special series"
 
@@ -448,7 +458,7 @@ msgstr "Add special series"
 msgid "Sonderserien"
 msgstr "Special series"
 
-#: src/components/AddSeriesDialog.tsx:279
+#: src/components/AddSeriesDialog.tsx:309
 msgid "Speichern"
 msgstr "Save"
 
@@ -483,7 +493,7 @@ msgstr "owned"
 msgid "vorhanden: {0} / {maxNumber}"
 msgstr "owned: {0} / {maxNumber}"
 
-#: src/components/AddSeriesDialog.tsx:183
+#: src/components/AddSeriesDialog.tsx:194
 msgid "Vorschläge erscheinen beim Tippen; bekannte Kurzformen werden auf den offiziellen Namen gesetzt."
 msgstr "Suggestions appear while typing; known short forms are mapped to the official name."
 
@@ -495,7 +505,7 @@ msgstr "Another volume"
 msgid "Weiteres Exemplar"
 msgstr "Another copy"
 
-#: src/components/AddSeriesDialog.tsx:202
+#: src/components/AddSeriesDialog.tsx:213
 msgid "z. B. 1, 2, 3"
 msgstr "e.g. 1, 2, 3"
 
@@ -507,7 +517,7 @@ msgstr "e.g. 219"
 msgid "z. B. 219 oder LTB 219"
 msgstr "e.g. 219 or LTB 219"
 
-#: src/components/AddSeriesDialog.tsx:171
+#: src/components/AddSeriesDialog.tsx:182
 msgid "z. B. LTB Phantomias Collection"
 msgstr "e.g. LTB Phantomias Collection"
 

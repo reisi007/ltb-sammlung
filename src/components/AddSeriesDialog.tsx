@@ -68,6 +68,12 @@ export function AddSeriesDialog({
   }, [open, initialSeries, initialNumbers, seriesNames]);
 
   const numbers = parseVolumeInput(numbersText);
+  const rawTokens = numbersText
+    .split(/[,;\s]+/)
+    .filter((token) => token !== "");
+  const invalidTokens = rawTokens.filter(
+    (token) => extractNumberFromScan(token) === null,
+  );
   const normalizedName = canonicalSeriesName(name, seriesNames);
 
   async function handleSubmit() {
@@ -78,6 +84,11 @@ export function AddSeriesDialog({
 
     if (normalizedName.length > 60) {
       setError(t`Der Name ist länger als 60 Zeichen.`);
+      return;
+    }
+
+    if (invalidTokens.length > 0) {
+      setError(t`Nicht gelesen: ${invalidTokens.join(", ")}`);
       return;
     }
 
@@ -228,26 +239,40 @@ export function AddSeriesDialog({
 
             {numbers.length > 0 && (
               <ul className="flex flex-wrap gap-2">
-                {numbers.map((number) => {
+                {numbers.map((number, index) => {
                   const entry = getSeriesEntry(catalog, normalizedName, number);
 
                   return (
                     <li
-                      key={number}
+                      key={`${number}-${index}`}
                       className={
-                        entry?.title != null
+                        entry !== null
                           ? "badge badge-success badge-lg badge-soft"
                           : "badge badge-warning badge-lg badge-soft"
                       }
                     >
                       <span className="font-semibold">{number}</span>
                       <span className="ml-1 max-w-56 truncate text-xs">
-                        {entry?.title ?? <Trans>Nicht im Katalog</Trans>}
+                        {entry === null ? (
+                          <Trans>Nicht im Katalog</Trans>
+                        ) : (
+                          <>
+                            <Trans>Bekannt:</Trans> {entry.title}
+                          </>
+                        )}
                       </span>
                     </li>
                   );
                 })}
               </ul>
+            )}
+
+            {invalidTokens.length > 0 && (
+              <div role="alert" className="alert alert-warning alert-soft">
+                <span>
+                  <Trans>Nicht gelesen: {invalidTokens.join(", ")}</Trans>
+                </span>
+              </div>
             )}
 
             {error !== null && (
@@ -266,7 +291,12 @@ export function AddSeriesDialog({
             <button
               type="button"
               className="btn btn-primary"
-              disabled={saving || normalizedName === "" || numbers.length === 0}
+              disabled={
+                saving ||
+                normalizedName === "" ||
+                numbers.length === 0 ||
+                invalidTokens.length > 0
+              }
               onClick={() => {
                 handleSubmit().catch(() => {
                   // Fehler landet bereits im Dialogzustand.
