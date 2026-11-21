@@ -63,6 +63,54 @@ file_put_contents($seedPath, json_encode([
     'panzerknacker' => [['number' => 2, 'containedIn' => 'Sammelband']],
 ], JSON_THROW_ON_ERROR));
 
+// Synthetische Test-ISBNs mit gültiger Prüfziffer. Sie sind keine belegten
+// Banddaten, sondern nur Fixtures für Katalog-Lookup und Konflikterkennung.
+$catalogPath = $workDir . '/catalog.json';
+file_put_contents($catalogPath, json_encode([
+    'meta' => ['sources' => [], 'syncedAt' => '2026-01-01T00:00:00+00:00'],
+    'entries' => [
+        [
+            'number' => 219,
+            'title' => 'Der Zauber-Zylinder',
+            'coverUrl' => null,
+            'coverUrlOfficial' => null,
+            'isbn' => '978-3-7704-0221-2',
+        ],
+        [
+            'number' => 901,
+            'title' => null,
+            'coverUrl' => null,
+            'coverUrlOfficial' => null,
+            'isbn' => '9783770402198', // falsche Prüfziffer: wird ignoriert
+        ],
+        [
+            'number' => 902,
+            'title' => null,
+            'coverUrl' => null,
+            'coverUrlOfficial' => null,
+            'isbn' => null,
+        ],
+    ],
+    'series' => [],
+], JSON_THROW_ON_ERROR));
+
+$conflictCatalogPath = $workDir . '/catalog-conflict.json';
+file_put_contents($conflictCatalogPath, json_encode([
+    'meta' => ['sources' => [], 'syncedAt' => '2026-01-01T00:00:00+00:00'],
+    'entries' => [
+        ['number' => 219, 'isbn' => '9783770402212'],
+        ['number' => 220, 'isbn' => '9783770402212'],
+    ],
+    'series' => [],
+], JSON_THROW_ON_ERROR));
+
+echo "Katalog-ISBN\n";
+$catalogIndex = new Catalog($catalogPath);
+check('Katalog-ISBN wird normalisiert gefunden', $catalogIndex->numberFor('9783770402212') === 219);
+check('ISBN mit falscher Prüfziffer wird ignoriert', $catalogIndex->numberFor('9783770402198') === null);
+check('widersprüchliche Katalog-ISBN wird verworfen', (new Catalog($conflictCatalogPath))->numberFor('9783770402212') === null);
+check('fehlender Katalog bleibt leer', (new Catalog($workDir . '/gibt-es-nicht.json'))->numberFor('9783770402212') === null);
+
 $databasePath = $workDir . '/ltb.sqlite';
 $store = new Store($databasePath, $seedPath);
 
@@ -315,7 +363,7 @@ check(
 );
 
 echo "HTTP-Schicht\n";
-$api = new Api($store);
+$api = new Api($store, $catalogPath);
 $store->createUser('admin', password_hash('geheim', PASSWORD_DEFAULT));
 $store->createUser('zoe', password_hash('zoe-geheim', PASSWORD_DEFAULT));
 
@@ -412,6 +460,55 @@ check('DELETE /api/isbn ist 200', $response['status'] === 200);
 check('DELETE entfernt die Zuordnung', !isset($store->isbnMappings('admin')['9783770402199']));
 $response = $api->dispatch('DELETE', '/api/isbn', $admin, $deleteIsbn, strlen($deleteIsbn));
 check('DELETE einer unbekannten ISBN ist 404', $response['status'] === 404);
+
+echo "API Lookup\n";
+$response = $api->dispatch(
+    'GET',
+    '/api/lookup',
+    ['HTTP_HOST' => 'ltb.test', 'QUERY_STRING' => 'isbn=978-3-7704-0221-2'],
+    '',
+    0
+);
+check('GET /api/lookup ohne Login ist 401', $response['status'] === 401);
+
+$lookup = $admin + ['QUERY_STRING' => 'isbn=978-3-7704-0221-2'];
+$response = $api->dispatch('GET', '/api/lookup', $lookup, '', 0);
+check('Lookup findet eine Katalog-ISBN', $response['status'] === 200);
+check('Lookup liefert die Katalog-Nummer', ($response['payload']['number'] ?? null) === 219);
+check('Lookup normalisiert die ISBN-13', ($response['payload']['isbn'] ?? null) === '9783770402212');
+
+$lookupIsbn10 = $admin + ['QUERY_STRING' => 'isbn=3-7704-0221-9'];
+$response = $api->dispatch('GET', '/api/lookup', $lookupIsbn10, '', 0);
+check(
+    'Lookup rechnet ISBN-10 in ISBN-13 um',
+    $response['status'] === 200
+        && ($response['payload']['isbn'] ?? null) === '9783770402212'
+);
+
+// Die gelernte Zuordnung des Benutzers hat Vorrang vor dem Katalog.
+$store->rememberIsbn('admin', '9783770402212', 220);
+$response = $api->dispatch('GET', '/api/lookup', $lookup, '', 0);
+check(
+    'gelernte Zuordnung hat Vorrang vor dem Katalog',
+    $response['status'] === 200 && ($response['payload']['number'] ?? null) === 220
+);
+$store->forgetIsbn('admin', '9783770402212');
+
+$unknownLookup = $admin + ['QUERY_STRING' => 'isbn=9783770402236'];
+$response = $api->dispatch('GET', '/api/lookup', $unknownLookup, '', 0);
+check('unbekannte ISBN ist 404', $response['status'] === 404);
+check(
+    '404 nennt den Grund',
+    ($response['payload']['error'] ?? '') === 'Diese ISBN ist keinem Band zugeordnet.'
+);
+
+$invalidLookup = $admin + ['QUERY_STRING' => 'isbn=9783770402230'];
+$response = $api->dispatch('GET', '/api/lookup', $invalidLookup, '', 0);
+check('ungültige Prüfziffer ist 400', $response['status'] === 400);
+
+$missingLookup = $admin + ['QUERY_STRING' => 'foo=bar'];
+$response = $api->dispatch('GET', '/api/lookup', $missingLookup, '', 0);
+check('fehlende ISBN ist 400', $response['status'] === 400);
 
 $response = $api->dispatch('POST', '/api/ltb', $admin, '', 9000);
 check('Body ueber 8 KB ist 413', $response['status'] === 413);

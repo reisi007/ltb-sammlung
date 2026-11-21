@@ -96,6 +96,22 @@ const BATCH_SIZE = 50;
 const BATCH_PAUSE_MS = 150;
 const MAX_RETRIES = 2;
 
+/**
+ * Optionale ISBN-Anreicherung aus dem Egmont-Shop.
+ *
+ * Stand 2026-11 liefern die Produktseiten der LTB-Hauptreihe
+ * (`/lustiges-taschenbuch-nr-<nr>-<slug>/`) weder `ISBN` in den Produktdaten
+ * noch `gtin13` im JSON-LD; nur Nebenreihen tragen dort eine ISBN. Der Hook
+ * ist deshalb standardmäßig aus. Eingeschaltet (`LTB_CATALOG_ISBN=1`) wird
+ * ausschließlich eine ISBN mit gültiger Prüfziffer übernommen, deren
+ * Produktname exakt `Lustiges Taschenbuch Nr. <nr>` nennt. Ohne Beleg bleibt
+ * das Feld null — es wird nie eine Nummer aus einem ISBN-Muster geraten.
+ */
+const ISBN_ENRICHMENT_ENABLED = process.env.LTB_CATALOG_ISBN === "1";
+const EGMONT_SITEMAP_URL = "https://www.egmont-shop.de/sitemap.xml";
+const EGMONT_MAIN_SERIES_PATTERN =
+  /<loc>(https:\/\/www\.egmont-shop\.de\/lustiges-taschenbuch-nr-(\d+)-[^<]+)<\/loc>/g;
+
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
@@ -716,8 +732,8 @@ async function crawlDuckipediaSeries({ name, pagePrefix }) {
   }));
 }
 
-/** Liest Produktname und Cover aus einer Egmont-Shop-Produktseite. */
-function parseEgmontProduct(html) {
+/** Liest die Produktdaten aus dem eingebetteten JSON einer Egmont-Seite. */
+function parseEgmontProductState(html) {
   const match =
     /<script type="application\/json" data-state="product-details-product">\s*(\{[\s\S]*?\})\s*<\/script>/.exec(
       html,
@@ -727,11 +743,18 @@ function parseEgmontProduct(html) {
     return null;
   }
 
-  let product;
-
   try {
-    product = JSON.parse(match[1]);
+    return JSON.parse(match[1]);
   } catch {
+    return null;
+  }
+}
+
+/** Liest Produktname und Cover aus einer Egmont-Shop-Produktseite. */
+function parseEgmontProduct(html) {
+  const product = parseEgmontProductState(html);
+
+  if (product === null) {
     return null;
   }
 
@@ -742,6 +765,215 @@ function parseEgmontProduct(html) {
   const title = typeof product?.name === "string" ? product.name : null;
 
   return { title, coverUrl };
+}
+
+/**
+ * Normalisiert ISBN-10/ISBN-13 auf eine gültige ISBN-13. Bewusst eine kleine
+ * eigene Kopie von `src/lib/isbn.ts`: dieses Script laeuft direkt unter Node
+ * und kann die TypeScript-Datei nicht importieren. Alles andere ergibt null.
+ */
+function normalizeIsbnValue(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.toUpperCase().replace(/[^0-9X]/g, "");
+
+  if (/^\d{9}[\dX]$/.test(normalized)) {
+    let sum = 0;
+
+    for (let index = 0; index < 10; index += 1) {
+      const digit = normalized[index] === "X" ? 10 : Number(normalized[index]);
+      sum += digit * (10 - index);
+    }
+
+    if (sum % 11 !== 0) {
+      return null;
+    }
+
+    const core = `978${normalized.slice(0, 9)}`;
+    let check = 0;
+
+    for (let index = 0; index < 12; index += 1) {
+      check += Number(core[index]) * (index % 2 === 0 ? 1 : 3);
+    }
+
+    return `${core}${(10 - (check % 10)) % 10}`;
+  }
+
+  if (/^97[89]\d{10}$/.test(normalized)) {
+    let sum = 0;
+
+    for (let index = 0; index < 12; index += 1) {
+      sum += Number(normalized[index]) * (index % 2 === 0 ? 1 : 3);
+    }
+
+    return Number(normalized[12]) === (10 - (sum % 10)) % 10
+      ? normalized
+      : null;
+  }
+
+  return null;
+}
+
+/**
+ * Liest die ISBN einer Egmont-Produktseite. Der Produktname muss die Bandnummer
+ * exakt nennen, sonst gilt die Seite als nicht zugeordnet.
+ */
+function parseEgmontIsbn(html, number) {
+  const product = parseEgmontProductState(html);
+
+  if (product === null || typeof product.name !== "string") {
+    return null;
+  }
+
+  const expected = new RegExp(`^Lustiges Taschenbuch Nr\\. ${number}(?:\\D|$)`);
+
+  if (!expected.test(product.name)) {
+    return null;
+  }
+
+  const specs = Array.isArray(product.specs) ? product.specs : [];
+  const isbnSpec = specs.find((spec) => spec?.key === "ISBN");
+  const fromSpecs = normalizeIsbnValue(isbnSpec?.value);
+
+  if (fromSpecs !== null) {
+    return fromSpecs;
+  }
+
+  const jsonLd =
+    /<script type="application\/ld\+json">\s*([\s\S]*?)<\/script>/i.exec(html);
+
+  if (jsonLd === null) {
+    return null;
+  }
+
+  try {
+    const data = JSON.parse(jsonLd[1]);
+
+    return normalizeIsbnValue(data?.gtin13);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Sammelt ISBNs der Hauptreihe aus dem Egmont-Shop. Eine Nummer bekommt nur
+ * dann eine ISBN, wenn alle gefundenen Produktseiten dieselbe gültige ISBN
+ * nennen; mehrere verschiedene ISBNs werden übersprungen.
+ */
+async function collectEgmontIsbns(numbers) {
+  const wanted = new Set(numbers);
+  const sitemap = await fetchHtml(EGMONT_SITEMAP_URL, "Egmont-Sitemap");
+  const urlsByNumber = new Map();
+  EGMONT_MAIN_SERIES_PATTERN.lastIndex = 0;
+  let match = EGMONT_MAIN_SERIES_PATTERN.exec(sitemap);
+
+  while (match !== null) {
+    const number = Number.parseInt(match[2], 10);
+
+    if (wanted.has(number)) {
+      const urls = urlsByNumber.get(number) ?? [];
+
+      if (!urls.includes(match[1])) {
+        urls.push(match[1]);
+      }
+
+      urlsByNumber.set(number, urls);
+    }
+
+    match = EGMONT_MAIN_SERIES_PATTERN.exec(sitemap);
+  }
+
+  if (urlsByNumber.size === 0) {
+    throw new Error(
+      "Egmont-Sitemap enthält keine Produktseiten der LTB-Hauptreihe. " +
+        "Es wurde nichts geschrieben.",
+    );
+  }
+
+  const isbns = new Map();
+  let failed = 0;
+  let checked = 0;
+
+  for (const number of [...urlsByNumber.keys()].sort((a, b) => a - b)) {
+    const found = new Set();
+
+    for (const url of urlsByNumber.get(number)) {
+      try {
+        const html = await fetchHtml(url, `Egmont ISBN ${number}`);
+        const isbn = parseEgmontIsbn(html, number);
+
+        if (isbn !== null) {
+          found.add(isbn);
+        }
+      } catch (error) {
+        failed += 1;
+        console.info(
+          `Egmont ISBN ${number}: Seite nicht lesbar (${errorMessage(error)}).`,
+        );
+      }
+
+      await sleep(BATCH_PAUSE_MS);
+    }
+
+    if (found.size === 1) {
+      isbns.set(number, [...found][0]);
+    } else if (found.size > 1) {
+      console.info(
+        `Egmont ISBN ${number}: mehrere ISBNs (${[...found].join(", ")}), ` +
+          "wird übersprungen.",
+      );
+    }
+
+    checked += 1;
+
+    if (checked % 50 === 0) {
+      console.info(
+        `Egmont ISBN: ${checked} Nummern geprüft, ${isbns.size} ISBN gefunden.`,
+      );
+    }
+  }
+
+  if (failed > 0) {
+    console.info(
+      `${failed} Egmont-Produktseiten waren nicht lesbar; betroffene Nummern ` +
+        "bleiben ohne ISBN.",
+    );
+  }
+
+  if (isbns.size === 0) {
+    console.info(
+      "Egmont-Shop liefert keine ISBN für die Hauptreihe; es wird keine ISBN " +
+        "gesetzt.",
+    );
+  }
+
+  return isbns;
+}
+
+/**
+ * Vorhandene, bereits geprüfte ISBNs aus dem letzten Katalog. Sie bleiben
+ * erhalten, solange die Anreicherung ausgeschaltet ist.
+ */
+async function previousCatalogIsbns() {
+  const isbns = new Map();
+
+  try {
+    const previous = JSON.parse(await readFile(OUTPUT_FILE, "utf8"));
+
+    for (const entry of Array.isArray(previous.entries) ? previous.entries : []) {
+      const isbn = normalizeIsbnValue(entry?.isbn);
+
+      if (isbn !== null && Number.isSafeInteger(entry.number)) {
+        isbns.set(entry.number, isbn);
+      }
+    }
+  } catch {
+    return isbns;
+  }
+
+  return isbns;
 }
 
 /** Wie fetchHtml, aber 404 bedeutet "Reihe endet hier" statt Fehler. */
@@ -917,11 +1149,18 @@ async function main() {
 
   const officialCoverUrls = await resolveOfficialCoverUrls(numbers);
 
+  // ISBNs sind optional und werden nie geraten. Ohne aktiven Hook bleiben
+  // bereits geprüfte Werte aus dem vorhandenen Katalog erhalten.
+  const isbns = ISBN_ENRICHMENT_ENABLED
+    ? await collectEgmontIsbns(numbers)
+    : await previousCatalogIsbns();
+
   const entries = numbers.map((number) => ({
     number,
     title: titles.get(number) ?? null,
     coverUrl: coverUrls.get(number) ?? null,
     coverUrlOfficial: officialCoverUrls.get(number) ?? null,
+    isbn: isbns.get(number) ?? null,
   }));
 
   const series = {};
@@ -985,6 +1224,11 @@ async function main() {
         "https://www.egmont-shop.de/<slug>-nr-<nr>/",
         "https://de.duckipedia.org/wiki/DD_<nummer>",
         "https://de.duckipedia.org/wiki/Panzerknacker_%26_Co_<nummer>",
+        ...(ISBN_ENRICHMENT_ENABLED
+          ? [
+              "https://www.egmont-shop.de/lustiges-taschenbuch-nr-<nummer>-<slug>/ (ISBN, opt-in)",
+            ]
+          : []),
       ],
       syncedAt: new Date().toISOString(),
     },
@@ -997,6 +1241,7 @@ async function main() {
   const withOfficial = entries.filter(
     (entry) => entry.coverUrlOfficial !== null,
   ).length;
+  const withIsbn = entries.filter((entry) => entry.isbn !== null).length;
   const withoutAnyCover = entries.filter(
     (entry) => entry.coverUrl === null && entry.coverUrlOfficial === null,
   ).length;
@@ -1049,7 +1294,10 @@ async function main() {
     `catalog.json geschrieben: ${entries.length} Einträge, ` +
       `${withTitle} Titel, ${withCover} Duckipedia-Cover, ` +
       `${withOfficial} mit geprüfter offizieller Fallback-URL, ` +
-      `${withoutAnyCover} ohne Cover, ` +
+      `${withoutAnyCover} ohne Cover, ${withIsbn} ISBN ` +
+      (ISBN_ENRICHMENT_ENABLED
+        ? "(Anreicherung aktiv). "
+        : "(Anreicherung aus; LTB_CATALOG_ISBN=1 aktiviert sie). ") +
       `${Object.keys(series).length} Nebenreihen (${seriesCount} Bände).`,
   );
 }

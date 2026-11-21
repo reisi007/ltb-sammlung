@@ -56,7 +56,7 @@ if [[ "$DRY_RUN" == true ]]; then
   echo "  2. Pruefung: dist/index.html nicht leer und mit /assets/-Pfaden"
   echo "  3. ssh root@reisinger.pictures 'mkdir -p …/ltb.all-the.rest …/ltb-api …/ltb-seed /opt/stacks/ltb'"
   echo "  4. rsync ${RSYNC_FLAGS[*]} ./dist/ $REMOTE"
-  echo "  5. rsync ./api/ $API_REMOTE und src/data/collection.json nach $SEED_REMOTE"
+  echo "  5. rsync ./api/ $API_REMOTE und src/data/{collection,catalog}.json nach $SEED_REMOTE"
   echo "  6. compose.yaml nach $STACK_DIR und 'docker compose up -d'"
   echo "  7. curl / (302 auf /login.html), /api/health (ok) und /api/collection (401)"
   echo "  8. Login ueber die API, danach muessen meta.source=sqlite und LTB-Zeilen vorhanden sein"
@@ -122,6 +122,14 @@ echo "Spiegle die API nach $API_REMOTE ..."
 echo "Spiegle den Seed nach $SEED_REMOTE ..."
 "$RSYNC_BIN" ./src/data/collection.json "$SEED_REMOTE" --archive \
   --chown=1002:webgroup --chmod=F644 --rsh="ssh $SSH_OPTS"
+
+# Der Katalog ist optional (GET /api/lookup). Fehlt er, bleibt der Lookup auf
+# die gelernten ISBN-Zuordnungen beschränkt.
+if [[ -f src/data/catalog.json ]]; then
+  echo "Spiegle den Katalog für den ISBN-Lookup nach $SEED_REMOTE ..."
+  "$RSYNC_BIN" ./src/data/catalog.json "$SEED_REMOTE" --archive \
+    --chown=1002:webgroup --chmod=F644 --rsh="ssh $SSH_OPTS"
+fi
 
 echo "Installiere den PHP-Stack und starte ihn ..."
 "$RSYNC_BIN" ./deploy/ltb-stack/compose.yaml "root@reisinger.pictures:$STACK_DIR/compose.yaml" \

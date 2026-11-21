@@ -17,6 +17,7 @@ declare(strict_types=1);
  */
 require_once __DIR__ . '/Validation.php';
 require_once __DIR__ . '/Store.php';
+require_once __DIR__ . '/Catalog.php';
 
 final class Api
 {
@@ -32,8 +33,16 @@ final class Api
         'X-Content-Type-Options' => 'nosniff',
     ];
 
-    public function __construct(private readonly Store $store)
-    {
+    private ?Catalog $catalog = null;
+
+    /**
+     * `$catalogPath` ist optional: ohne Katalogdatei antwortet `/api/lookup`
+     * nur anhand der gelernten Zuordnungen.
+     */
+    public function __construct(
+        private readonly Store $store,
+        private readonly ?string $catalogPath = null
+    ) {
     }
 
     /**
@@ -112,6 +121,22 @@ final class Api
             $collection['meta']['user'] = $user;
 
             return self::response(200, $collection);
+        }
+
+        if ($path === '/api/lookup' && $method === 'GET') {
+            $isbn = validate_isbn_query(self::queryParameter($server, 'isbn'));
+            // Zuerst die gelernte Zuordnung des Benutzers, dann der Katalog.
+            $number = $this->store->isbnMappings($user)[$isbn]
+                ?? $this->catalogNumber($isbn);
+
+            if ($number === null) {
+                throw new ValidationError(
+                    404,
+                    'Diese ISBN ist keinem Band zugeordnet.'
+                );
+            }
+
+            return self::response(200, ['isbn' => $isbn, 'number' => $number]);
         }
 
         if ($path === '/api/ltb' && $method === 'POST') {
@@ -333,6 +358,42 @@ final class Api
         }
 
         return $user;
+    }
+
+    /**
+     * Lädt den Katalog erst beim ersten Lookup. Fehlt die Datei, bleibt der
+     * Index leer; die gelernten Zuordnungen funktionieren weiter.
+     */
+    private function catalogNumber(string $isbn): ?int
+    {
+        if ($this->catalog === null
+            && $this->catalogPath !== null
+            && is_file($this->catalogPath)) {
+            $this->catalog = new Catalog($this->catalogPath);
+        }
+
+        return $this->catalog?->numberFor($isbn);
+    }
+
+    /**
+     * Liest einen Query-Parameter aus `QUERY_STRING`. `dispatch()` bekommt den
+     * Pfad ohne Query, deshalb kommt der Wert aus den Server-Parametern.
+     *
+     * @param array<string, mixed> $server
+     */
+    private static function queryParameter(array $server, string $name): ?string
+    {
+        $query = (string) ($server['QUERY_STRING'] ?? '');
+
+        if ($query === '') {
+            return null;
+        }
+
+        $parameters = [];
+        parse_str($query, $parameters);
+        $value = $parameters[$name] ?? null;
+
+        return is_string($value) ? $value : null;
     }
 
     /**

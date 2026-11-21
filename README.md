@@ -53,7 +53,7 @@ Der Dev-Server läuft wegen des GitHub-Pages-Basispfads unter
 | `npm run test` | Vitest einmalig |
 | `npm run verify` | Typecheck, Tests und Build nacheinander |
 | `npm run sync:data` | Vier CSV-Tabs des Google Sheets nach `src/data/collection.json` |
-| `npm run sync:catalog` | Cover-URLs und Titel (Duckipedia, offizielle Seite, Egmont-Shop) nach `src/data/catalog.json` |
+| `npm run sync:catalog` | Cover-URLs, Titel und optional ISBNs (Duckipedia, offizielle Seite, Egmont-Shop) nach `src/data/catalog.json` |
 | `npm run i18n:extract` | Nachrichten aus `src/` in die `.po`-Kataloge extrahieren |
 | `npm run i18n:compile` | `.po`-Kataloge kompilieren (der Vite-Plugin kompiliert sonst beim Build) |
 | `npm run data:check` | prüft, dass echte Daten statt der Platzhalter vorliegen |
@@ -108,9 +108,9 @@ Wichtig:
   sichtbar, ohne die Kernfrage „Habe ich Nummer X?“ zu verfälschen.
 
 `src/data/catalog.json` enthält pro LTB-Nummer optional einen Titel, eine
-Duckipedia-Cover-URL und eine offizielle Cover-URL als Fallback. Die App nutzt
-das erste vorhandene Bild und blendet bei Ladefehlern auf einen Text-Fallback
-(„Nr. X – Titel“) um.
+Duckipedia-Cover-URL, eine offizielle Cover-URL als Fallback und eine ISBN
+(`isbn`, sonst `null`). Die App nutzt das erste vorhandene Bild und blendet bei
+Ladefehlern auf einen Text-Fallback („Nr. X – Titel“) um.
 
 ## Datenquellen
 
@@ -126,6 +126,8 @@ das erste vorhandene Bild und blendet bei Ladefehlern auf einen Text-Fallback
   `https://de.duckipedia.org/wiki/Panzerknacker_%26_Co_<nummer>`
 - Egmont-Shop für Reihen, die nicht in der Nebenreihen-Übersicht stehen
   (Micky Maus Legacy Collection): `https://www.egmont-shop.de/<slug>-nr-<nr>/`
+- Egmont-Shop-Produktseiten als mögliche ISBN-Quelle (optional):
+  `https://www.egmont-shop.de/lustiges-taschenbuch-nr-<nummer>-<slug>/`
 - Offizielle Cover-URLs als Fallback:
   `https://www.lustiges-taschenbuch.de/sites/default/files/cover/LTB-<nummer>.jpg`
 
@@ -136,6 +138,29 @@ Legacy Collection aus dem Egmont-Shop, Donald Duck und Panzerknacker & Co aus
 den jeweiligen Duckipedia-Infoboxen. Cover-Anfragen laufen in Batches à 50 mit
 maximal zwei Retries und 150 ms Pause. Es werden ausschließlich URLs
 gespeichert; keine Bilder heruntergeladen.
+
+### ISBNs im Katalog
+
+Der Katalog enthält nur ISBNs, die eine Quelle belegt. Stand November 2026
+liefern die geprüften Produktseiten der **Egmont-Hauptreihe** weder `ISBN` in
+den Produktdaten noch `gtin13` im JSON-LD — Stichproben über die Reihe (u. a.
+Nr. 1, 219, 500 und 588) ergaben keinen Wert. Duckipedia, die offizielle
+LTB-Seite und die DNB (HTTP 403) liefern ebenfalls keine ISBN. Die
+Produktseiten der Nebenreihen tragen zwar teilweise eine ISBN, aber deren
+Nummernkreis ist ein anderer; eine Übernahme in die Hauptreihe wäre falsch.
+Ergänzend geprüft: Die Google-Books-API antwortet ohne eigenen API-Key mit
+HTTP 429 (Tagesquote 0), Open Library hatte in Stichproben keinen Treffer für
+Hauptreihen-Bände (u. a. Nr. 219).
+
+Deshalb ist die ISBN-Anreicherung im Sync standardmäßig **aus**. Der
+standardmäßig abgeschaltete Hook lässt sich mit
+`LTB_CATALOG_ISBN=1 npm run sync:catalog` einschalten: Er liest die
+Egmont-Sitemap und die Produktseiten der Hauptreihe
+und übernimmt nur eine ISBN mit gültiger Prüfziffer, deren Produktname exakt
+`Lustiges Taschenbuch Nr. <nummer>` nennt. Nennen mehrere Seiten einer Nummer
+verschiedene ISBNs, wird die Nummer übersprungen. Ohne Beleg bleibt
+`isbn: null` — es wird keine Nummer aus einem ISBN-Muster geraten. Vorhandene,
+geprüfte ISBNs bleiben bei einem Lauf mit ausgeschaltetem Hook erhalten.
 
 Reihennamen werden auf die offiziellen Schreibweisen abgebildet (z. B.
 „Premium+“ → „LTB Premium +“, „Phantomias Collection“ → „LTB Phantomias
@@ -187,12 +212,13 @@ QR-/Barcode-Scan:
   Notiz. Das gilt für die Hauptreihe und für Sonderserien.
 - Die Obergrenze pro Vorgang ist bewusst hoch (200) und dient nur dem Schutz
   der API; die Suche bleibt bei drei Nummern.
-- Scan: Kamera mit `BarcodeDetector` (QR, Code 128; EAN wird gelesen, aber
-  als Nummer abgelehnt) oder `jsQR` als Fallback.
-  Aus dem Payload wird die Nummer gelesen; fremde Inhalte werden abgelehnt
-  statt geraten. Die gedruckte **ISBN/EAN** eines Bandes enthält die
-  LTB-Nummer nicht und wird deshalb abgelehnt (kein Nummernraten); ein
-  QR-Code mit der Nummer funktioniert.
+- Scan: Kamera mit `BarcodeDetector` (QR, Code 128; EAN wird gelesen) oder
+  `jsQR` als Fallback. Aus dem Payload wird die Nummer gelesen; fremde Inhalte
+  werden abgelehnt statt geraten. Eine gedruckte **ISBN/EAN** wird
+  normalisiert und über den Katalog bzw. die gelernten Zuordnungen
+  (`isbnMap`) auf die LTB-Nummer abgebildet. Eine unbekannte ISBN führt zu
+  einer klaren Rückfrage bzw. Fehlermeldung — es wird keine Nummer aus dem
+  ISBN-Muster geraten. Ein QR-Code mit der Nummer funktioniert unverändert.
 - Unbekannte Nummern sind erlaubt (Status „Nicht im Katalog“), ebenso doppelte
   Exemplare. Pro Exemplar entsteht eine Zeile; `containedIn` bleibt eine freie
   Notiz.
@@ -210,8 +236,17 @@ Technik:
   über `POST/PATCH/DELETE /api/ltb`.
 - **API**: `api/index.php` (PHP 8, PDO/SQLite). Routen:
   `GET /api/collection`, `POST /api/ltb` (1–3 Zeilen), `PATCH /api/ltb`,
-  `DELETE /api/ltb`, `GET /api/health`. Duplikate werden über
-  `{ number, occurrence }` adressiert (0 = erste Zeile mit dieser Nummer).
+  `DELETE /api/ltb`, `GET /api/lookup?isbn=…`, `GET /api/health`. Duplikate
+  werden über `{ number, occurrence }` adressiert (0 = erste Zeile mit dieser
+  Nummer).
+- **ISBN-Lookup**: `GET /api/lookup?isbn=…` ist wie die Datenrouten
+  auth-geschützt und prüft zuerst die gelernte Zuordnung des Benutzers, dann
+  `catalog.entries[].isbn`. Treffer liefern
+  `{ "isbn": "978…", "number": 219 }`, eine unbekannte ISBN 404 und eine
+  ungültige ISBN 400. Der Container liest den Katalog über `LTB_CATALOG`
+  (Standard `/srv/seed/catalog.json`); fehlt die Datei, antwortet der Lookup
+  nur anhand von `isbnMap`. Der Deploy spiegelt `src/data/catalog.json` mit,
+  wenn die Datei lokal vorhanden ist.
 - **Auth**: Benutzer und Sessions liegen in SQLite (`users`, `sessions`); die
   API antwortet ohne gültiges Session-Cookie mit 401. Jede Zeile, jede Reihe
   und jede ISBN-Zuordnung gehört einem Benutzer (`owner`). Benutzerverwaltung

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Catalog } from "./collection";
 import { normalizeIsbn, resolveScan } from "./isbn";
 
+// Fiktive Fixtures mit gültiger Prüfziffer, keine belegten Banddaten.
 const catalog: Catalog = {
   meta: { sources: [], syncedAt: "2026-01-01T00:00:00.000Z" },
   entries: [
@@ -11,6 +12,13 @@ const catalog: Catalog = {
       coverUrl: null,
       coverUrlOfficial: null,
       isbn: "978-3-7704-0219-9",
+    },
+    {
+      number: 220,
+      title: "Testband mit ISBN-10",
+      coverUrl: null,
+      coverUrlOfficial: null,
+      isbn: "3-7704-0221-9",
     },
     {
       number: 13,
@@ -51,6 +59,24 @@ describe("resolveScan", () => {
 
   it("bildet eine Katalog-ISBN auf die Nummer ab", () => {
     expect(resolveScan("978-3-7704-0219-9", catalog, {})).toEqual({
+      kind: "isbn",
+      number: 219,
+      isbn: "9783770402199",
+    });
+  });
+
+  it("findet eine im Katalog als ISBN-10 hinterlegte Nummer", () => {
+    expect(resolveScan("9783770402212", catalog, {})).toEqual({
+      kind: "isbn",
+      number: 220,
+      isbn: "9783770402212",
+    });
+  });
+
+  it("bevorzugt den Katalog vor einer gelernten Zuordnung", () => {
+    expect(
+      resolveScan("9783770402199", catalog, { "9783770402199": 42 }),
+    ).toEqual({
       kind: "isbn",
       number: 219,
       isbn: "9783770402199",

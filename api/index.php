@@ -20,6 +20,7 @@ declare(strict_types=1);
  *   POST   /api/series/volume  Bände zu einer Sonderserie hinzufügen
  *   DELETE /api/series/volume  Band aus einer Sonderserie entfernen
  *   PUT    /api/isbn         ISBN einer LTB-Nummer zuordnen (Scanner)
+ *   GET    /api/lookup       ISBN nachschlagen (?isbn=…, gelernt + Katalog)
  *   PATCH  /api/ltb          Notiz einer Zeile ändern (number + occurrence)
  *   DELETE /api/ltb          Zeile löschen (number + occurrence)
  *   GET    /api/health       Lebenszeichen ohne Daten
@@ -52,6 +53,14 @@ function store(): Store
     return new Store($databasePath, $seedPath);
 }
 
+function api(): Api
+{
+    // Der Katalog ist optional; ohne Datei nutzt der Lookup nur isbn_map.
+    $catalogPath = getenv('LTB_CATALOG') ?: '/srv/seed/catalog.json';
+
+    return new Api(store(), $catalogPath);
+}
+
 $length = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
 $rawBody = '';
 
@@ -67,7 +76,7 @@ if ($length <= 8192) {
 }
 
 try {
-    $response = (new Api(store()))->dispatch(
+    $response = api()->dispatch(
         request_method(),
         request_path(),
         $_SERVER,

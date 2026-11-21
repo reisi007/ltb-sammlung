@@ -1,8 +1,9 @@
 # Entscheidungen und Zielarchitektur
 
 **Status:** Version 1.0 umgesetzt (2026-11-21). Der eigene Multi-User-Auth-
-Dienst ist mit #10 umgesetzt. Offen sind #11 (Katalog-ISBNs fehlen) und #14
-(Benutzerverwaltung in der Oberfläche).
+Dienst ist mit #10 umgesetzt. Bei #11 (ISBN → LTB-Nummer) sind Lookup und
+gelernte Zuordnungen umgesetzt; für die Hauptreihe fehlt weiterhin eine
+belastbare ISBN-Quelle. Offen ist #14 (Benutzerverwaltung in der Oberfläche).
 
 Dieses Dokument hält die dauerhaften Entscheidungen fest. Offene Arbeit steht
 als GitHub-Issue im Repository, nicht hier.
@@ -113,6 +114,10 @@ isbn_map(owner, isbn, number, created_at)
 - **Schreibmodell:** `GET /api/collection`, `POST /api/ltb` (1–3 Zeilen),
   `PATCH /api/ltb`, `DELETE /api/ltb`. Duplikate sind erlaubt und werden über
   `{ number, occurrence }` adressiert. Jede Zeile behält ihre freie Notiz.
+- **ISBN-Lookup:** `GET /api/lookup?isbn=…` prüft zuerst die gelernte
+  Zuordnung des Benutzers (`isbn_map`), dann `catalog.entries[].isbn`. Der
+  Katalog ist optional (`LTB_CATALOG`, Deploy: `/srv/seed/catalog.json`);
+  ohne Datei bleibt nur `isbn_map`. Ungültige ISBN ist 400, unbekannt 404.
 - **Auth der API:** Sessions in SQLite; ohne gültiges Cookie antwortet die
   API mit 401. Schreibende Requests prüfen zusätzlich den `Origin` gegen den
   Host. Benutzerverwaltung per CLI.
@@ -128,7 +133,12 @@ isbn_map(owner, isbn, number, created_at)
 
 - Benutzerverwaltung in der Oberfläche (heute CLI) — Issue #14.
 - ISBN/EAN vom Cover auf die LTB-Nummer abbilden (Scanner) — Issue #11;
-  Mechanismus und `isbn_map` sind umgesetzt, externe Quellen liefern keine
-  ISBNs.
+  Mechanismus, `isbn_map` und `GET /api/lookup` sind umgesetzt. Eine
+  belastbare ISBN-Quelle für die Hauptreihe fehlt weiterhin: Der Egmont-Shop
+  liefert auf den geprüften Produktseiten der Hauptreihe keine ISBN,
+  Duckipedia/lustiges-taschenbuch.de ebenfalls nicht, die DNB antwortet mit
+  HTTP 403. Der optionale Sync-Hook (`LTB_CATALOG_ISBN=1`) übernimmt nur
+  belegte ISBNs und bleibt standardmäßig aus; `catalog.entries[].isbn` ist
+  daher derzeit überwiegend `null`.
 - Optional: Bearbeiten/Löschen in der Oberfläche (die API kann beides schon)
   und die Rücksynchronisation ins Google Sheet (bewusst nicht vorgesehen).

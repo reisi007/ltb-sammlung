@@ -19,6 +19,9 @@ services:
     environment:
       LTB_DB: /data/ltb.sqlite
       LTB_SEED: /srv/seed/collection.json
+      # Optionaler Katalog für GET /api/lookup. Fehlt die Datei, nutzt der
+      # Lookup nur die gelernten ISBN-Zuordnungen.
+      LTB_CATALOG: /srv/seed/catalog.json
     volumes:
       - /home/webadmin/websites/ltb-api:/srv/api:ro
       - /home/webadmin/websites/ltb-seed:/srv/seed:ro

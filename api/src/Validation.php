@@ -241,6 +241,28 @@ function validate_isbn(mixed $value): string
     throw new ValidationError(422, 'isbn muss eine ISBN-10 oder ISBN-13 sein.');
 }
 
+/**
+ * Query-Parameter von GET /api/lookup. Eine fehlende oder ungültige ISBN ist
+ * hier ein Client-Fehler (400), keine unprozessierbare Eingabe (422) wie beim
+ * Schreiben einer Zuordnung.
+ */
+function validate_isbn_query(mixed $value): string
+{
+    if ($value === null) {
+        throw new ValidationError(400, 'isbn fehlt.');
+    }
+
+    if (!is_string($value)) {
+        throw new ValidationError(400, 'isbn muss Text sein.');
+    }
+
+    try {
+        return validate_isbn($value);
+    } catch (ValidationError $error) {
+        throw new ValidationError(400, $error->getMessage());
+    }
+}
+
 
 function validate_username(mixed $value): string
 {
