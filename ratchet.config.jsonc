@@ -7,6 +7,26 @@
   {
     "name": "quality",
     "rules": {
+      // Harte Policy: Regeldateien (AGENTS.md) bleiben unter 400 Zeilen.
+      // Bei Bedarf in modul-lokale AGENTS.md aufteilen, nicht wachsen lassen.
+      "rule-file-max-lines": {
+        "class": "a rule file drifting into a specification",
+        "incident": "LuminaRust/Agents.md reached 623 lines and open-accreditation 380: architecture, stack and release runbook in the file every session loads",
+        "unit": "lines in the longest rule file",
+        "direction": "ceiling",
+        "baseline": "fixed",
+        "tier": "fast",
+        "count": {
+          "file_metrics": {
+            "files": ["**/AGENTS.md"],
+            "metric": "line_count",
+            "respect_gitignore": true,
+            "exclude": []
+          }
+        },
+        "description": "the largest `AGENTS.md` in the tree, measured in lines; the paydown is a module-local `AGENTS.md` next to the code it describes",
+        "aggregate": "max"
+      },
       "todo-markers": {
         "class": "unfinished work",
         "incident": "prevention: no TODO markers in this project yet — keep it that way; open work belongs in GitHub issues",

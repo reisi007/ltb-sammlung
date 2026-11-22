@@ -14,7 +14,8 @@
       "value": 0
     },
     "rule-file-max-lines": {
-      "value": 59
+      "value": 400,
+      "reason": "Policy: rule files (AGENTS.md) stay at or below 400 lines; split into module-local AGENTS.md instead of growing the root file."
     },
     "rule-file-name": {
       "value": 0
