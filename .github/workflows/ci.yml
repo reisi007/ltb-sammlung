@@ -2,7 +2,25 @@ name: CI
 
 on:
   push:
+    # Catch-all `paths` subtracts instead of selecting: every path matches '**',
+    # the negations drop docs, the trailing positives restore gate inputs.
+    # ratchet's agent-rules preset reads **/AGENTS.md (rule-file-present,
+    # rule-file-max-lines) and docs/plans/** (plan-status-line); skipping CI
+    # for those would silently disable those gates. The `paths` form (rather
+    # than paths-ignore) is needed for re-inclusion — order is significant.
+    paths:
+      - '**'
+      - '!**/*.md'
+      - '!docs/**'
+      - '**/AGENTS.md'
+      - 'docs/plans/**'
   pull_request:
+    paths:
+      - '**'
+      - '!**/*.md'
+      - '!docs/**'
+      - '**/AGENTS.md'
+      - 'docs/plans/**'
 
 permissions:
   contents: read
