@@ -18,8 +18,8 @@
       "value": 0
     },
     "rule-file-max-lines": {
-      "value": 400,
-      "reason": "Policy: rule files (AGENTS.md) stay at or below 400 lines; split into module-local AGENTS.md instead of growing the root file."
+      "value": 100,
+      "reason": "Policy: AGENTS.md is always in context and stays at or below 100 lines; move detail into module-local AGENTS.md. General source files use the separate 400-line file-max-lines gate."
     },
     "rule-file-name": {
       "value": 0

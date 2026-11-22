@@ -18,7 +18,8 @@ Ein Plan in `docs/plans/` beginnt mit `**Status:** Plan | In Arbeit | Done |
 Empfehlung, nicht implementiert`.
 
 Jede Quelldatei max. 400 Zeilen (Gate `file-max-lines`, `check-file-lines.sh`);
-`AGENTS.md` zusätzlich unter `rule-file-max-lines`.
+`AGENTS.md` bleibt als stets geladene Datei unter 100 Zeilen (Gate
+`rule-file-max-lines`).
 
 ## Tracker
 
