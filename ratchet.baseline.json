@@ -7,6 +7,10 @@
     "console-log": {
       "value": 0
     },
+    "file-max-lines": {
+      "value": 400,
+      "reason": "Hard limit: every source file stays at or below 400 lines; split into modules instead of growing a file."
+    },
     "gates-untouched": {
       "value": 0
     },

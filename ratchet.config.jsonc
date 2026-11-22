@@ -7,6 +7,18 @@
   {
     "name": "quality",
     "rules": {
+      // Harte Policy: jede Quelldatei bleibt bei maximal 400 Zeilen.
+      "file-max-lines": {
+        "class": "oversized source file",
+        "incident": "hard limit: every source file stays at or below 400 lines",
+        "unit": "lines in the longest source file",
+        "direction": "ceiling",
+        "baseline": "fixed",
+        "tier": "fast",
+        "count": {
+          "command": ["sh", "-c", "sh check-file-lines.sh ."]
+        }
+      },
       // Harte Policy: Regeldateien (AGENTS.md) bleiben unter 400 Zeilen.
       // Bei Bedarf in modul-lokale AGENTS.md aufteilen, nicht wachsen lassen.
       "rule-file-max-lines": {

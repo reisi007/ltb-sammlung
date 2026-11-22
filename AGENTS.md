@@ -28,8 +28,10 @@ daraus gelesen wird.
 Ein Plan in `docs/plans/` beginnt mit `**Status:** Plan | In Arbeit | Done |
 Empfehlung, nicht implementiert`.
 
-Regeldateien (`AGENTS.md`) bleiben maximal 400 Zeilen (fester Ratchet-Gate);
-größere Regelwerke gehören in modul-lokale `AGENTS.md`.
+Jede Quelldatei bleibt maximal 400 Zeilen (fester Ratchet-Gate
+`file-max-lines`, gemessen von `check-file-lines.sh`); größere Einheiten
+gehören in Module. Regeldateien (`AGENTS.md`) unterliegen zusätzlich dem
+Gate `rule-file-max-lines` mit derselben Grenze.
 
 ## Tracker
 
