@@ -591,19 +591,49 @@ $response = $api->dispatch('POST', '/api/ltb', $sameOrigin, $created, strlen($cr
 check('eigener Origin ist erlaubt', $response['status'] === 201);
 
 echo "Dummy-Hash und Origin-Schema\n";
-$probe = password_hash('probe', PASSWORD_DEFAULT);
+$probeInfo = password_get_info(password_hash('probe', PASSWORD_DEFAULT));
 $dummy = Api::dummyPasswordHash();
 check(
     'Dummy-Hash hat dieselben Kosten wie echte Hashes',
-    password_get_info($dummy)['options']['cost']
-        === password_get_info($probe)['options']['cost']
+    password_get_info($dummy)['options']['cost'] === $probeInfo['options']['cost']
 );
 check(
     'Dummy-Hash nutzt denselben Algorithmus wie echte Hashes',
-    password_get_info($dummy)['algoName'] === password_get_info($probe)['algoName']
+    password_get_info($dummy)['algoName'] === $probeInfo['algoName']
 );
 check('Dummy-Hash verifiziert kein beliebiges Passwort', password_verify('beliebig', $dummy) === false);
 check('wiederholte Aufrufe liefern denselben Dummy-Hash', Api::dummyPasswordHash() === $dummy);
+
+// Regression zu #29: rohe random_bytes() enthalten mit ~12 % Wahrscheinlichkeit
+// ein NUL-Byte, das bcrypt als ValueError ablehnt. Der Test schickt gezielt
+// NUL-haltiges Material durch denselben Erzeuger wie der Produktionspfad;
+// vor der Hex-Kodierung waere dieser Test deterministisch fehlgeschlagen.
+$createDummyHash = new ReflectionMethod(Api::class, 'createDummyPasswordHash');
+$nulSafe = true;
+$generated = [];
+foreach ([str_repeat("\0", 32), "\0a\0b", random_bytes(32), 'probe'] as $rawMaterial) {
+    try {
+        $candidate = $createDummyHash->invoke(null, $rawMaterial);
+        if (!is_string($candidate) || $candidate === '') {
+            $nulSafe = false;
+            break;
+        }
+        $info = password_get_info($candidate);
+        if (
+            $info['algoName'] !== $probeInfo['algoName']
+            || $info['options']['cost'] !== $probeInfo['options']['cost']
+        ) {
+            $nulSafe = false;
+            break;
+        }
+        $generated[$candidate] = true;
+    } catch (Throwable $e) {
+        $nulSafe = false;
+        break;
+    }
+}
+check('Dummy-Hash bleibt bei NUL-Bytes im Zufall erzeugbar', $nulSafe);
+check('unterschiedliches Zufallsmaterial ergibt unterschiedliche Hashes', count($generated) === 4);
 
 $httpOrigin = $admin + ['HTTP_ORIGIN' => 'http://ltb.test'];
 $response = $api->dispatch('POST', '/api/ltb', $httpOrigin, $created, strlen($created));

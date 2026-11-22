@@ -305,9 +305,14 @@ final class Api
         return self::$dummyPasswordHash;
     }
 
-    private static function createDummyPasswordHash(): string
+    private static function createDummyPasswordHash(?string $rawMaterial = null): string
     {
-        $hash = password_hash(random_bytes(32), PASSWORD_DEFAULT);
+        // bcrypt (PASSWORD_DEFAULT) lehnt NUL-Bytes im Passwort ab; rohe
+        // random_bytes() enthalten mit ca. 12 % Wahrscheinlichkeit mindestens
+        // eines. Hex-Kodierung ist NUL-frei und behält die 256 Bit Entropie.
+        // Der optionale Parameter erlaubt den Regressionstest, gezielt
+        // NUL-Material durch denselben Pfad zu schicken.
+        $hash = password_hash(bin2hex($rawMaterial ?? random_bytes(32)), PASSWORD_DEFAULT);
 
         if ($hash === false) {
             throw new RuntimeException('Dummy-Passwort-Hash konnte nicht erzeugt werden.');
