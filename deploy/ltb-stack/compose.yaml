@@ -1,9 +1,10 @@
 # LTB-API: PHP-FPM mit SQLite.
 #
 # Wird von deploy.sh nach /opt/stacks/ltb/compose.yaml installiert. Der
-# PHP-Container ist nur im Docker-Netz `webnet` erreichbar; Caddy spricht ihn
-# per FastCGI an. Benutzer und Sessions liegen in derselben SQLite-Datenbank
-# wie die Sammlung; ein externer Auth-Sidecar ist nicht mehr noetig.
+# PHP-Container haengt nur im dedizierten Docker-Netz `ltb-edge`, in dem
+# ausschliesslich Caddy und ltb-php liegen; Caddy spricht ihn per FastCGI an.
+# Benutzer und Sessions liegen in derselben SQLite-Datenbank wie die Sammlung;
+# ein externer Auth-Sidecar ist nicht mehr noetig.
 #
 # Haertung: ltb-php laeuft als www-data (82:82) ohne Capabilities, mit
 # no-new-privileges und read-only Rootfs; /tmp ist die einzige beschreibbare
@@ -11,11 +12,11 @@
 # fuer den Deploy: Verzeichnis 0700, Datenbankdateien 0600. Danach kann der
 # PHP-Container nicht mehr chownen und nur noch /data beschreiben.
 #
-# Offen (Issue #27): PHP-FPM lauscht weiterhin im geteilten Netz `webnet`.
-# Andere Container koennen FastCGI direkt ansprechen und dabei REMOTE_ADDR
-# selbst setzen, was das IP-Login-Limit aushebelt. Die Isolation erfordert
-# eine Aenderung der Caddy-Konfiguration ausserhalb dieses Repos und ist
-# hier deshalb nicht umgesetzt.
+# Netz-Isolation (Issue #27): ltb-php ist aus dem geteilten `webnet` entfernt.
+# Nur Caddy kann den FastCGI-Port erreichen und damit REMOTE_ADDR setzen; das
+# IP-Login-Limit kann nicht mehr von anderen Containern umgangen werden.
+# Voraussetzung: das externe Netz `ltb-edge` existiert auf dem Host und der
+# Caddy-Stack ist daran angebunden (siehe reisi007/caddyfile).
 #
 # Der Quellcode liegt unter /home/webadmin/websites/ltb-api (nicht im
 # Web-Root), der Seed unter /home/webadmin/websites/ltb-seed. Die Datenbank
@@ -68,11 +69,11 @@ services:
       retries: 3
       start_period: 10s
     networks:
-      - webnet
+      - ltb-edge
 
 volumes:
   ltb_data:
 
 networks:
-  webnet:
+  ltb-edge:
     external: true

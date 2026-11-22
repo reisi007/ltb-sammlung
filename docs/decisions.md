@@ -107,7 +107,8 @@ isbn_map(owner, isbn, number, created_at)
 - Login-Seite und PWA-Assets liegen im selben Build.
 - Ein PHP-FPM-Container (`ltb-php`, Compose-Projekt `ltb`, 128 MB Limit)
   liefert die JSON-API; Caddy routet `/api/*` per FastCGI dorthin. Der
-  Container ist nur im Docker-Netz `webnet` erreichbar.
+  Container hängt nur im dedizierten Docker-Netz `ltb-edge`, an dem neben
+  Caddy keine weiteren Container teilnehmen.
 - **SQLite ist die Quelle.** Sie liegt im Volume `ltb_ltb_data`; beim ersten
   Start wird sie aus `src/data/collection.json` geseedet. Danach schreibt nur
   noch die API. Das Google Sheet bleibt Seed, keine Rücksynchronisation.

@@ -276,7 +276,9 @@ Technik:
   API antwortet ohne gültiges Session-Cookie mit 401. Jede Zeile, jede Reihe
   und jede ISBN-Zuordnung gehört einem Benutzer (`owner`). Benutzerverwaltung
   per CLI: `docker exec -i ltb-php php /srv/api/bin/user.php add <name>`.
-  Der PHP-Container ist nur im Docker-Netz `webnet` erreichbar.
+  Der PHP-Container hängt nur im dedizierten Docker-Netz `ltb-edge` (neben
+  Caddy keine weiteren Teilnehmer). Das externe Netz muss auf dem Host vor
+  dem Deploy angelegt sein: `docker network create ltb-edge`.
 - **CSRF**: SameSite=Lax-Cookie plus Origin-Prüfung gegen den eigenen Host bei
   schreibenden Requests.
 - **Datenbank**: SQLite im Volume `ltb_ltb_data` (Host:
@@ -310,7 +312,9 @@ Technik:
   `/home/webadmin/websites/ltb-api`, den Seed nach
   `/home/webadmin/websites/ltb-seed`, installiert
   `deploy/ltb-stack/compose.yaml` nach `/opt/stacks/ltb` und startet den
-  PHP-Stack per `docker compose up -d`.
+  PHP-Stack per `docker compose up -d`. Voraussetzung ist das externe Netz
+  `ltb-edge`; der Caddy-Stack muss daran angebunden sein (siehe
+  `reisi007/caddyfile`, `deployment/docker-compose.yml`).
 
 ## Internationalisierung
 

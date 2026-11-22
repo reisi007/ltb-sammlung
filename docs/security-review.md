@@ -97,9 +97,10 @@ Backup-Prüfungen) wurden im Review umgesetzt.
 
 ## Betrieb und Backup
 
-- PHP-Container nur im Docker-Netz `webnet`, keine veröffentlichten Ports,
-  128 MB / 0,5 CPU, Healthcheck. Quellcode und Seed read-only eingehängt,
-  Datenbank im Volume `ltb_ltb_data`.
+- PHP-Container nur im dedizierten Docker-Netz `ltb-edge` (neben Caddy keine
+  weiteren Teilnehmer), keine veröffentlichten Ports, 128 MB / 0,5 CPU,
+  Healthcheck. Quellcode und Seed read-only eingehängt, Datenbank im Volume
+  `ltb_ltb_data`.
 - Container-Härtung: `ltb-php` läuft als `www-data` (`82:82`) mit
   `cap_drop: [ALL]`, `no-new-privileges`, `read_only: true` und einer 16 MB
   großen tmpfs unter `/tmp`. Der vorbeschaltete Init-Container (`ltb-init`,
@@ -224,18 +225,23 @@ Härtungen aus diesem Durchlauf, als Issues erfasst:
 - #26 (behoben): Der Dummy-Hash wird zur Laufzeit mit `PASSWORD_DEFAULT`
   erzeugt, `POST /api/logout` prüft den Origin und der Origin-Vergleich
   berücksichtigt das Schema.
-- #27 (Teile behoben): Container-Härtung (`82:82`, `cap_drop`,
+- #27 (umgesetzt, Deploy ausstehend): Container-Härtung (`82:82`, `cap_drop`,
   `no-new-privileges`, read-only + tmpfs, Init-Container für `/data`), SQLite
   `0600`/`0700` inklusive umask-Absicherung in `Store.php`, echte CSP
-  (Produktions-Build-Meta für HTML, Header für die API) und logrotate für
-  `/var/log/ltb-vacuum.log` sind umgesetzt und lokal geprüft.
-  - **Weiter offen:** Netz-Isolation. PHP-FPM lauscht im geteilten `webnet`;
-    andere Container können FastCGI direkt ansprechen und dabei `REMOTE_ADDR`
-    selbst setzen, womit das IP-Login-Limit ausgehebelt wird. Das erfordert
-    eine Caddy-Konfigurationsänderung außerhalb dieses Repos und ist hier
-    bewusst nicht umgesetzt. Issue #27 bleibt deshalb offen.
-  - **Gate:** Die Caddy-Konfiguration ist hier nicht verifizierbar; ein dort
-    gesetzter CSP-Header überschneidet sich mit dem API-Header (Schnittmenge).
+  (Produktions-Build-Meta für HTML, Header für die API), logrotate für
+  `/var/log/ltb-vacuum.log` und die Netz-Isolation sind vorbereitet und lokal
+  geprüft.
+  - **Netz-Isolation:** `ltb-php` hängt jetzt im externen Netz `ltb-edge`
+    statt im geteilten `webnet`; Caddy ist dort ebenfalls angebunden. Damit
+    kann nur noch Caddy den FastCGI-Port ansprechen und `REMOTE_ADDR` setzen —
+    das IP-Login-Limit ist nicht mehr von anderen Containern umgehbar. Die
+    Caddy-Seite liegt im Repo `reisi007/caddyfile`; beide Stacks müssen auf
+    dem Host neu deployt werden, damit die Änderung wirksam wird.
+  - **CSP:** Caddy setzt für die statischen LTB-Responses nur
+    `frame-ancestors 'none'` als HTTP-Header (im `<meta>` ignorieren Browser
+    das). Die eigentliche Policy kommt aus dem Build-Meta-Tag bzw. dem
+    API-Header; mehrere Policies werden vom Browser als Schnittmenge
+    angewendet, nicht als Ersatz.
 - Bewusst akzeptiert: das Google Sheet ist öffentlich per Link; der Login
   schützt die API-Kopie, nicht die Sheet-Quelle. `meta.sheetId`/`sheetUrl`
   bleiben global.
