@@ -15,8 +15,13 @@ export default defineConfig({
   // Ablaufe bekommen einen eigenen Namen (mutation-*.spec.ts) und werden hier
   // bewusst ignoriert.
   testIgnore: "**/mutation-*.spec.ts",
-  fullyParallel: false,
-  workers: 1,
+  // Parallellauf gegen die Live-Instanz: 16 Tests, 18 CPUs.
+  // Gemessen (retries: 0, maxFailures: 0): seriell 59,4 s, 4 Worker 16,3 s,
+  // 8 Worker 9,6 s, 12 Worker 8,3 s — alle 16/16 grün, keine Kollisionen.
+  // 8 Worker als Default; jeder Test schreibt in <project>/<route> und die
+  // Suite ist read-only, daher ist kein Named Lock nötig.
+  fullyParallel: true,
+  workers: 8,
   forbidOnly: !!process.env.CI,
   retries: 0,
   timeout: 120_000,

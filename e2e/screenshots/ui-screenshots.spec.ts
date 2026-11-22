@@ -60,8 +60,9 @@ async function captureSections(
   );
 }
 
-test.describe.configure({ mode: "serial" });
-
+// Jeder Test nutzt eine eigene Page und schreibt nach
+// test-results/ui-screenshots/<project>/<route>; die Suite ist read-only.
+// Es gibt keinen gemeinsamen Zustand, der ein `lock:` erfordern würde.
 for (const route of routes) {
   test(`@screenshot ${route.name}`, async ({ page }, testInfo) => {
     if (!USER || !PASSWORD) {
