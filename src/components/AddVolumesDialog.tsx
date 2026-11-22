@@ -1,89 +1,27 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  MAX_ADD_ITEMS,
-  MAX_VOLUME_NUMBER,
   buildAddItems,
   extractNumberFromScan,
-  splitNumberInput,
   validateAddNumbers,
-  type AddItem,
   type AddValidationError,
 } from "../lib/add";
-import type { Catalog, Collection } from "../lib/collection";
-import { getCatalogEntry, getRowsForNumber } from "../lib/collection";
 import { resolveScan } from "../lib/isbn";
 import { QrScanner } from "./QrScanner";
-
-interface AddRowState {
-  id: number;
-  value: string;
-  note: string;
-}
-
-interface AddVolumesDialogProps {
-  open: boolean;
-  catalog: Catalog;
-  collection: Collection;
-  initialNumbers?: readonly number[];
-  onClose: () => void;
-  onAdd: (items: readonly AddItem[]) => Promise<void>;
-  onRememberIsbn: (isbn: string, number: number) => Promise<void>;
-}
-
-let nextRowId = 1;
-
-function createRow(value = "", note = ""): AddRowState {
-  return { id: nextRowId++, value, note };
-}
-
-/**
- * Teilt Zeilen mit mehreren Nummern in je eine Zeile auf. Die Notiz bleibt an
- * der ersten Nummer; die weiteren starten leer. So bleibt pro Band eine eigene
- * Notiz möglich, auch wenn die Nummern kommagetrennt eingegeben wurden.
- */
-function expandRows(rows: AddRowState[]): AddRowState[] {
-  const expanded: AddRowState[] = [];
-  let changed = false;
-
-  for (const row of rows) {
-    const tokens = splitNumberInput(row.value);
-
-    if (tokens.length < 2) {
-      expanded.push(row);
-      continue;
-    }
-
-    changed = true;
-
-    tokens.forEach((token, index) => {
-      expanded.push(createRow(token, index === 0 ? row.note : ""));
-    });
-  }
-
-  return changed ? expanded : rows;
-}
+import { IsbnPrompt } from "./AddVolumesDialog/IsbnPrompt";
+import { ValidationMessage } from "./AddVolumesDialog/ValidationMessage";
+import { VolumeRow } from "./AddVolumesDialog/VolumeRow";
+import {
+  createRow,
+  expandRows,
+  parseRows,
+  type AddRowState,
+} from "./AddVolumesDialog/rows";
+import type { AddVolumesDialogProps } from "./AddVolumesDialog/types";
 
 type DialogError =
   | { kind: "validation"; error: AddValidationError }
   | { kind: "text"; message: string };
-
-function ValidationMessage({ error }: { error: AddValidationError }) {
-  switch (error) {
-    case "empty":
-      return <Trans>Bitte mindestens eine Nummer eingeben.</Trans>;
-    case "too-many":
-      return (
-        <Trans>Es sind höchstens {MAX_ADD_ITEMS} Bände pro Vorgang möglich.</Trans>
-      );
-    case "invalid-number":
-      return <Trans>Eine Nummer ist keine ganze Zahl.</Trans>;
-    case "number-out-of-range":
-      return (
-        <Trans>Nummern müssen zwischen 1 und {MAX_VOLUME_NUMBER} liegen.</Trans>
-      );
-  }
-}
 
 export function AddVolumesDialog({
   open,
@@ -136,24 +74,27 @@ export function AddVolumesDialog({
     }
   }, [open, initialNumbers]);
 
-  const parsed = useMemo(
-    () =>
-      rows.map((row) => {
-        const tokens = splitNumberInput(row.value);
-        const rowNumbers = tokens.map((token) => extractNumberFromScan(token));
-
-        return {
-          row,
-          numbers: rowNumbers.filter((value): value is number => value !== null),
-          invalid: rowNumbers.some((value) => value === null),
-        };
-      }),
-    [rows],
-  );
+  const parsed = useMemo(() => parseRows(rows), [rows]);
 
   const numbers = parsed.flatMap((entry) => entry.numbers);
 
   const invalidRow = parsed.find((entry) => entry.invalid);
+
+  function updateRowValue(id: number, value: string) {
+    setRows((current) =>
+      current.map((item) => (item.id === id ? { ...item, value } : item)),
+    );
+  }
+
+  function updateRowNote(id: number, note: string) {
+    setRows((current) =>
+      current.map((item) => (item.id === id ? { ...item, note } : item)),
+    );
+  }
+
+  function removeRow(id: number) {
+    setRows((current) => current.filter((item) => item.id !== id));
+  }
 
   async function assignIsbn() {
     if (pendingIsbn === null) {
@@ -312,221 +253,67 @@ export function AddVolumesDialog({
         ) : (
           <>
             {pendingIsbn !== null && (
-              <div className="alert alert-info mb-4 flex-col items-start gap-2">
-                <span>
-                  <Trans>
-                    ISBN {pendingIsbn} ist noch nicht zugeordnet. Welche
-                    LTB-Nummer ist das?
-                  </Trans>
-                </span>
-                <div className="flex w-full items-end gap-2">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    className="input input-sm w-full"
-                    placeholder={t`z. B. 219`}
-                    value={isbnNumber}
-                    onChange={(event) => setIsbnNumber(event.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-primary"
-                    disabled={isbnSaving || isbnNumber.trim() === ""}
-                    onClick={() => {
-                      assignIsbn().catch(() => {
-                        // Fehler landet bereits im Dialogzustand.
-                      });
-                    }}
-                  >
-                    {isbnSaving && (
-                      <span
-                        className="loading loading-spinner loading-xs"
-                        aria-hidden="true"
-                      />
-                    )}
-                    <Trans>Zuordnen</Trans>
-                  </button>
-                </div>
-                <p className="text-xs opacity-70">
-                  <Trans>
-                    Die Zuordnung wird gespeichert und beim nächsten Scan
-                    wiederverwendet.
-                  </Trans>
-                </p>
-              </div>
+              <IsbnPrompt
+                isbn={pendingIsbn}
+                value={isbnNumber}
+                saving={isbnSaving}
+                onChange={setIsbnNumber}
+                onAssign={() => {
+                  assignIsbn().catch(() => {
+                    // Fehler landet bereits im Dialogzustand.
+                  });
+                }}
+              />
             )}
             <form
               id="add-volumes-form"
               className="flex flex-col gap-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              handleSubmit().catch(() => {
-                // Fehler landet bereits im Dialogzustand.
-              });
-            }}
-          >
-            {rows.map((row, index) => {
-              const entry = parsed[index];
-              // Mehrere Nummern in einer Zeile werden erst beim Verlassen
-              // aufgeteilt; bis dahin zeigt die Zeile bewusst keine Vorschau.
-              const number =
-                entry?.numbers.length === 1 ? entry.numbers[0] ?? null : null;
-              const known = number === null ? null : getCatalogEntry(catalog, number);
-              const owned = number === null ? 0 : getRowsForNumber(collection.ltb, number).length;
-              const invalid = entry?.invalid ?? false;
-
-              return (
-                <div
-                  key={row.id}
-                  data-row-id={row.id}
-                  className="rounded-box bg-base-200 p-3"
-                >
-                  <div className="flex items-end gap-2">
-                    <label className="flex-1">
-                      <span className="label-text text-xs">
-                        <Trans>Nummer</Trans>
-                      </span>
-                      <textarea
-                        rows={1}
-                        inputMode="numeric"
-                        className={
-                          invalid
-                            ? "textarea textarea-error w-full resize-none"
-                            : "textarea w-full resize-none"
-                        }
-                        placeholder={t`z. B. 219 oder LTB 219`}
-                        value={row.value}
-                        autoFocus={index === rows.length - 1 && rows.length === 1}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          setRows((current) =>
-                            current.map((item) =>
-                              item.id === row.id ? { ...item, value } : item,
-                            ),
-                          );
-                        }}
-                        onBlur={(event) => {
-                          // Klick auf Scan/Entfernen in derselben Zeile darf die
-                          // Zeile nicht vor dem Click neu aufbauen.
-                          const next = event.relatedTarget;
-
-                          if (
-                            next instanceof HTMLElement &&
-                            next.closest(`[data-row-id="${row.id}"]`) !== null
-                          ) {
-                            return;
-                          }
-
-                          setRows((current) => expandRows(current));
-                        }}
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      className="btn btn-square btn-outline"
-                      aria-label={t`QR-Code scannen`}
-                      onClick={() => {
-                        setError(null);
-                        setScanRow(row.id);
-                      }}
-                    >
-                      <svg
-                        aria-hidden="true"
-                        viewBox="0 0 24 24"
-                        className="size-5"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16" />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-square btn-ghost"
-                      aria-label={t`Zeile entfernen`}
-                      disabled={rows.length === 1}
-                      onClick={() =>
-                        setRows((current) =>
-                          current.filter((item) => item.id !== row.id),
-                        )
-                      }
-                    >
-                      <svg
-                        aria-hidden="true"
-                        viewBox="0 0 24 24"
-                        className="size-5"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M6 6l12 12M18 6L6 18" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  <label className="mt-2 block">
-                    <span className="label-text text-xs">
-                      <Trans>Enthalten in (optional)</Trans>
-                    </span>
-                    <input
-                      type="text"
-                      className="input input-sm w-full"
-                      value={row.note}
-                      maxLength={200}
-                      placeholder={t`z. B. MM 4`}
-                      onChange={(event) => {
-                        const note = event.target.value;
-                        setRows((current) =>
-                          current.map((item) =>
-                            item.id === row.id ? { ...item, note } : item,
-                          ),
-                        );
-                      }}
-                    />
-                  </label>
-
-                  {number !== null && (
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                      {known?.title != null ? (
-                        <span className="badge badge-success badge-sm badge-soft">
-                          <Trans>Bekannt: {known.title}</Trans>
-                        </span>
-                      ) : (
-                        <span className="badge badge-warning badge-sm badge-soft">
-                          <Trans>Nicht im Katalog</Trans>
-                        </span>
-                      )}
-                      {owned > 0 && (
-                        <span className="badge badge-ghost badge-sm">
-                          <Trans>Bereits {owned}× vorhanden</Trans>
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            <button
-              type="button"
-              className="btn btn-sm btn-ghost self-start"
-              onClick={() => setRows((current) => [...current, createRow()])}
+              onSubmit={(event) => {
+                event.preventDefault();
+                handleSubmit().catch(() => {
+                  // Fehler landet bereits im Dialogzustand.
+                });
+              }}
             >
-              <Trans>Weiterer Band</Trans>
-            </button>
+              {rows.map((row, index) => (
+                <VolumeRow
+                  key={row.id}
+                  row={row}
+                  entry={parsed[index]}
+                  autoFocus={index === rows.length - 1 && rows.length === 1}
+                  canRemove={rows.length > 1}
+                  catalog={catalog}
+                  collection={collection}
+                  onValueChange={updateRowValue}
+                  onNoteChange={updateRowNote}
+                  onExpand={() => setRows((current) => expandRows(current))}
+                  onScan={(id) => {
+                    setError(null);
+                    setScanRow(id);
+                  }}
+                  onRemove={removeRow}
+                />
+              ))}
 
-            {error !== null && (
-              <div role="alert" className="alert alert-error alert-soft">
-                <span>
-                  {error.kind === "validation" ? (
-                    <ValidationMessage error={error.error} />
-                  ) : (
-                    error.message
-                  )}
-                </span>
-              </div>
-            )}
+              <button
+                type="button"
+                className="btn btn-sm btn-ghost self-start"
+                onClick={() => setRows((current) => [...current, createRow()])}
+              >
+                <Trans>Weiterer Band</Trans>
+              </button>
+
+              {error !== null && (
+                <div role="alert" className="alert alert-error alert-soft">
+                  <span>
+                    {error.kind === "validation" ? (
+                      <ValidationMessage error={error.error} />
+                    ) : (
+                      error.message
+                    )}
+                  </span>
+                </div>
+              )}
             </form>
           </>
         )}
