@@ -1,4 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
+import os from "node:os";
+
+// GitHub-hosted ubuntu-latest hat 4 vCPU (der CI-Schritt `nproc` misst sie).
+// Worker-Budget: 4 Cores -> 2 Worker. Lokal mit 18 Cores bleiben 8 Worker.
+const workers = process.env.CI
+  ? Math.max(1, Math.floor(os.cpus().length / 2))
+  : 8;
 
 /**
  * Screenshot-Harness für den UI-Review (getrennt von einem normalen
@@ -15,13 +22,13 @@ export default defineConfig({
   // Ablaufe bekommen einen eigenen Namen (mutation-*.spec.ts) und werden hier
   // bewusst ignoriert.
   testIgnore: "**/mutation-*.spec.ts",
-  // Parallellauf gegen die Live-Instanz: 16 Tests, 18 CPUs.
-  // Gemessen (retries: 0, maxFailures: 0): seriell 59,4 s, 4 Worker 16,3 s,
-  // 8 Worker 9,6 s, 12 Worker 8,3 s — alle 16/16 grün, keine Kollisionen.
-  // 8 Worker als Default; jeder Test schreibt in <project>/<route> und die
-  // Suite ist read-only, daher ist kein Named Lock nötig.
+  // Parallellauf gegen die Live-Instanz: 16 Tests, keine gemeinsamen Daten.
+  // Gemessen (retries: 0, maxFailures: 0, 18 CPUs): seriell 59,4 s,
+  // 4 Worker 16,3 s, 8 Worker 9,6 s, 12 Worker 8,3 s — alle 16/16 grün.
+  // Jeder Test schreibt in <project>/<route>, die Suite ist read-only:
+  // kein Named Lock nötig. CI nutzt das halbe CPU-Budget (4 Cores -> 2).
   fullyParallel: true,
-  workers: 8,
+  workers,
   forbidOnly: !!process.env.CI,
   retries: 0,
   timeout: 120_000,
