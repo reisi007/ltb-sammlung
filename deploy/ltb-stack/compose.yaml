@@ -27,9 +27,8 @@ services:
     container_name: ltb-init
     user: "0:0"
     entrypoint: ["sh", "-c"]
-    command: >
-      mkdir -p /data && chown -R 82:82 /data && chmod 700 /data &&
-      find /data -maxdepth 1 -type f -exec chmod 600 {} +
+    command:
+      - "mkdir -p /data && chown -R 82:82 /data && chmod 700 /data && find /data -maxdepth 1 -type f -exec chmod 600 {} +"
     volumes:
       - ltb_data:/data
     restart: "no"
