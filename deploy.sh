@@ -150,19 +150,25 @@ if ! ssh $SSH_OPTS -T root@reisinger.pictures \
 fi
 if ! "$RSYNC_BIN" ./deploy/ltb-vacuum.logrotate \
     root@reisinger.pictures:/etc/logrotate.d/ltb-vacuum.next \
-    --archive --chmod=F644 --rsh="ssh $SSH_OPTS"; then
+    --archive --no-owner --no-group --chmod=F644 --rsh="ssh $SSH_OPTS"; then
   echo "FEHLER: logrotate-Konfiguration konnte nicht uebertragen werden." >&2
   exit 1
 fi
-if ! ssh $SSH_OPTS -T root@reisinger.pictures \
-    "logrotate -d /etc/logrotate.d/ltb-vacuum.next >/dev/null 2>&1 &&
-     mv -f /etc/logrotate.d/ltb-vacuum.next /etc/logrotate.d/ltb-vacuum"; then
+# logrotate -d exitet auch bei ignorierter Config mit 0 (falscher Owner),
+# deshalb zusaetzlich auf "error:" und die tatsaechlich gelesene Datei pruefen.
+validation="$(ssh $SSH_OPTS -T root@reisinger.pictures \
+    "logrotate -d /etc/logrotate.d/ltb-vacuum.next 2>&1" || true)"
+if printf '%s\n' "$validation" | grep -qi 'error:' ||
+   ! printf '%s\n' "$validation" | grep -q 'Handling 1 logs'; then
   echo "FEHLER: logrotate -d lehnt die Konfiguration ab — kein Deploy." >&2
+  printf '%s\n' "$validation" >&2
   ssh $SSH_OPTS -T root@reisinger.pictures \
     "rm -f /etc/logrotate.d/ltb-vacuum.next" || true
   exit 1
 fi
-echo "logrotate-Konfiguration installiert (0644) und mit logrotate -d validiert"
+ssh $SSH_OPTS -T root@reisinger.pictures \
+  "mv -f /etc/logrotate.d/ltb-vacuum.next /etc/logrotate.d/ltb-vacuum"
+echo "logrotate-Konfiguration installiert (root:root 0644) und mit logrotate -d validiert"
 
 echo "Lege den Benutzer an, falls er noch fehlt ..."
 users="$(ssh $SSH_OPTS -T root@reisinger.pictures \
