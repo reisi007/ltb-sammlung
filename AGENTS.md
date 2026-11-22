@@ -1,23 +1,12 @@
 # AGENTS.md
 
-## Was „grün“ bedeutet
+## Grün
 
-Ein Beitrag ist grün, wenn beide Befehle ohne Fehler durchlaufen:
-
-```bash
-npm run verify           # typecheck + Tests + Build
-ratchet check --no-ratchet
-```
-
-`npm run verify` führt `tsc --noEmit`, `vitest run` und `vite build` aus.
-`ratchet check --no-ratchet` prüft die Gates aus `ratchet.config.jsonc`, ohne
-die Baseline zu verändern. Die Baseline `ratchet.baseline.json` wird nur mit
-`ratchet baseline init` (neue Regeln) bzw. `ratchet baseline update` (echte
-Verbesserung) angepasst.
-
-Die Gates zählen unter anderem `TODO`, `any`, `console.log` und
-TypeScript-Fehler in `src/` und `scripts/`. Neue Tests sind willkommen; die
-Testanzahl darf nicht sinken.
+`npm run verify` (tsc, vitest, build, Daten-Check) und
+`ratchet check --no-ratchet` müssen ohne Fehler laufen. Die Baseline
+`ratchet.baseline.json` nur mit `ratchet baseline init` (neue Regeln) bzw.
+`ratchet baseline update` (echte Verbesserung) ändern. Die Testanzahl darf
+nicht sinken. Jeder Commit braucht einen `Verify:`-Footer.
 
 ## Regeln dieser Ebene
 
@@ -28,37 +17,26 @@ daraus gelesen wird.
 Ein Plan in `docs/plans/` beginnt mit `**Status:** Plan | In Arbeit | Done |
 Empfehlung, nicht implementiert`.
 
-Jede Quelldatei bleibt maximal 400 Zeilen (fester Ratchet-Gate
-`file-max-lines`, gemessen von `check-file-lines.sh`); größere Einheiten
-gehören in Module. Regeldateien (`AGENTS.md`) unterliegen zusätzlich dem
-Gate `rule-file-max-lines` mit derselben Grenze.
+Jede Quelldatei max. 400 Zeilen (Gate `file-max-lines`, `check-file-lines.sh`);
+`AGENTS.md` zusätzlich unter `rule-file-max-lines`.
 
 ## Tracker
 
-Offene Arbeit steht als GitHub-Issue im Repository, nicht in lokalen
-Aufgabenlisten. Commits verlinken ihr Issue: `Closes #N` beim Abschluss, sonst
-`Refs #N`.
+Offene Arbeit als GitHub-Issue, nicht lokal. Commits verlinken mit
+`Closes #N` bzw. `Refs #N`.
 
 ## Commits
 
-Conventional Commits verwenden, z. B.:
+Conventional Commits, z. B. `feat: …`, `fix: …`, `chore: …`.
 
-```text
-feat: add QR placeholder to search bar
-fix: keep duplicate collection rows
-chore: sync cover catalog
-```
+## Daten
 
-## Datenregeln
-
-- `containedIn` ist eine freie Notiz pro Sammlungszeile, kein Fremdschlüssel.
-- Zeilen nicht deduplizieren und nicht joinen. Doppelte Nummern (z. B. 219)
-  bleiben erhalten.
-- Sonderserien sind eine getrennte Liste mit eigenen Nummernkreisen.
-- Die Sync-Scripts dürfen bei Fehlern keine leeren oder erfundenen JSON-Dateien
-  schreiben. Erst schreiben, wenn alle Abrufe erfolgreich waren.
+- `containedIn`: freie Notiz pro Zeile, kein Fremdschlüssel.
+- Nicht deduplizieren/joinen; doppelte Nummern (219) bleiben erhalten.
+- Sonderserien: eigene Liste, eigener Nummernkreis.
+- Sync-Scripts schreiben bei Fehlern keine leeren/erfundenen JSONs — erst
+  nach erfolgreichen Abrufen.
 
 ## Cover
 
-Cover nur verlinken, nie herunterladen oder ins Repository legen. Die Rechte
-liegen bei Disney/Egmont und den jeweiligen Rechteinhabern.
+Nur verlinken, nie herunterladen oder einchecken. Rechte: Disney/Egmont.
