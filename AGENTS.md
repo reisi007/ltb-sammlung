@@ -28,6 +28,9 @@ daraus gelesen wird.
 Ein Plan in `docs/plans/` beginnt mit `**Status:** Plan | In Arbeit | Done |
 Empfehlung, nicht implementiert`.
 
+Regeldateien (`AGENTS.md`) bleiben maximal 400 Zeilen (fester Ratchet-Gate);
+größere Regelwerke gehören in modul-lokale `AGENTS.md`.
+
 ## Tracker
 
 Offene Arbeit steht als GitHub-Issue im Repository, nicht in lokalen
