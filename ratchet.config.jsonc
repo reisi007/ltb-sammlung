@@ -3,6 +3,7 @@
 // Jede Regel zählt einen Defekt und darf sich nur in die erlaubte Richtung
 // bewegen. Neue Regeln sind Prävention und sagen das im `incident` auch so.
 [
+  { "preset": "agent-rules" },
   {
     "name": "quality",
     "rules": {

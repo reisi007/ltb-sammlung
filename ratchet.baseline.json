@@ -7,6 +7,21 @@
     "console-log": {
       "value": 0
     },
+    "gates-untouched": {
+      "value": 0
+    },
+    "plan-status-line": {
+      "value": 0
+    },
+    "rule-file-max-lines": {
+      "value": 59
+    },
+    "rule-file-name": {
+      "value": 0
+    },
+    "rule-file-present": {
+      "value": 1
+    },
     "test-count": {
       "value": 22
     },
@@ -15,6 +30,9 @@
     },
     "ts-errors": {
       "value": 0
+    },
+    "unverified-commits": {
+      "value": 8
     }
   }
 }

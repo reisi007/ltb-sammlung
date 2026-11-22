@@ -19,6 +19,15 @@ Die Gates zählen unter anderem `TODO`, `any`, `console.log` und
 TypeScript-Fehler in `src/` und `scripts/`. Neue Tests sind willkommen; die
 Testanzahl darf nicht sinken.
 
+## Regeln dieser Ebene
+
+Regeln dieser Ebene. Was nur ein Verzeichnis betrifft, gehört in die
+`AGENTS.md` **dieses** Verzeichnisses — sie wird geladen, wenn eine Datei
+daraus gelesen wird.
+
+Ein Plan in `docs/plans/` beginnt mit `**Status:** Plan | In Arbeit | Done |
+Empfehlung, nicht implementiert`.
+
 ## Tracker
 
 Offene Arbeit steht als GitHub-Issue im Repository, nicht in lokalen
